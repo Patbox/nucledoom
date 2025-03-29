@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "nucledoom",
+	"version": "${version}",
+	"name": "NucleDoom",
+	"description": "A game console emulator for Minecraft.",
+	"authors": [
+		"Patbox"
+	],
+	"contact": {
+		"homepage": "https://github.com/haykam821/Console-Box#readme",
+		"issues": "https://github.com/haykam821/Console-Box/issues"
+	},
+	"entrypoints": {
+		"main": [
+          "eu.pb4.nucledoom.DoomBox"
+		]
+	},
+	"mixins": [
+      "nucledoom.mixin.json"
+	],
+	"license": "MIT",
+	"depends": {
+		"fabricloader": ">=0.4.0",
+		"java": ">=21",
+		"plasmid": ">=0.6.0"
+	}
+}

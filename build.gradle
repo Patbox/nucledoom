@@ -1,0 +1,57 @@
+plugins {
+	id "fabric-loom" version "1.9.2"
+	id "maven-publish"
+}
+
+archivesBaseName = project.archives_base_name
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+	maven {
+		name = "Fabric"
+		url = "https://maven.fabricmc.net/"
+	}
+	maven {
+		name = "Nucleoid"
+		url = "https://maven.nucleoid.xyz/"
+	}
+	mavenCentral()
+}
+
+dependencies {
+	// Main
+	minecraft("com.mojang:minecraft:${project.minecraft_version}")
+	mappings("net.fabricmc:yarn:${project.yarn_mappings}:v2")
+	modImplementation("net.fabricmc:fabric-loader:${project.loader_version}")
+
+	// Fabric API
+	modImplementation("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}")
+
+	// Plasmid
+	modImplementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
+
+	implementation files('jars/mochadoom.jar')
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType(JavaCompile) {
+	options.release = 21
+	options.encoding = "UTF-8"
+}
+
+jar {
+	from "LICENSE"
+}

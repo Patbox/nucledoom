@@ -1,0 +1,9 @@
+{
+  "type": "nucledoom:doom",
+  "name": "Doom",
+  "description": [
+
+  ],
+  "icon": "tnt",
+  "players": 4
+}
