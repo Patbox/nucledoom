@@ -3,10 +3,11 @@ package eu.pb4.nucledoom.game;
 import eu.pb4.mapcanvas.api.core.*;
 import eu.pb4.mapcanvas.api.font.DefaultFonts;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
-import eu.pb4.nucledoom.DoomBox;
-import eu.pb4.nucledoom.game.audio.AudioController;
+import eu.pb4.nucledoom.NucleDoom;
+import eu.pb4.nucledoom.game.doom.DoomGame;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.item.FilledMapItem;
+import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -35,7 +36,7 @@ public class GameCanvas {
         CanvasImage temp;
         try {
             temp = CanvasImage.from(ImageIO.read(
-                    Files.newInputStream(FabricLoader.getInstance().getModContainer(DoomBox.MOD_ID).get().findPath("data/nucledoom/background/" + path + ".png").get())));
+                    Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get().findPath("data/nucledoom/background/" + path + ".png").get())));
         } catch (Throwable e) {
             temp = new CanvasImage(128, 128);
 
@@ -60,14 +61,13 @@ public class GameCanvas {
 
     private final CombinedPlayerCanvas canvas;
 
-    private final AudioController audioController;
+    private PlayerInterface playerInterface = PlayerInterface.NO_OP;
 
     private long previousFrameTime = -1;
     private DoomGame game = null;
 
-    public GameCanvas(DoomConfig config, AudioController audioController) {
+    public GameCanvas(DoomConfig config) {
         this.config = config;
-        this.audioController = audioController;
 
         this.canvas = DrawableCanvas.create(SECTION_WIDTH, SECTION_HEIGHT);
         CanvasUtils.clear(this.canvas, CanvasColor.GRAY_HIGH);
@@ -109,6 +109,11 @@ public class GameCanvas {
         DefaultFonts.VANILLA.drawText(this.canvas, text, DRAW_OFFSET_X - 78, DRAW_OFFSET_Y + SCREEN_HEIGHT - 59, 8, CanvasColor.BLACK_HIGH);
         DefaultFonts.VANILLA.drawText(this.canvas, text, DRAW_OFFSET_X - 79, DRAW_OFFSET_Y + SCREEN_HEIGHT - 60, 8, CanvasColor.WHITE_HIGH);
     }
+
+    public void setPlayerInterface(PlayerInterface playerInterface) {
+        this.playerInterface = playerInterface;
+    }
+
     private void drawError(Throwable e) {
         var width = DefaultFonts.VANILLA.getTextWidth("ERROR!", 16);
 
@@ -123,7 +128,7 @@ public class GameCanvas {
 
 
         message1 = "Runtime error!";
-        message2 = e.getMessage();
+        message2 = e.toString();
 
 
         List<String> message2Split = new ArrayList<>();
@@ -168,6 +173,11 @@ public class GameCanvas {
         try {
             this.game.startGameLoop();
         } catch (Throwable e) {
+            if (e.getMessage().equals("Closed!")) {
+                this.game.clear();
+                return;
+            }
+
             this.error = e;
             this.drawError(e);
             e.printStackTrace();
@@ -203,7 +213,9 @@ public class GameCanvas {
 
     public void updateMousePosition(float x, float y) {
         synchronized (this) {
-            this.game.moveMouse(MathHelper.subtractAngles(this.mouseX, x));
+            if (this.game != null) {
+                this.game.moveMouse(MathHelper.subtractAngles(this.mouseX, x));
+            }
         }
         this.mouseX = x;
         this.mouseY = y;
@@ -215,14 +227,16 @@ public class GameCanvas {
 
     public void selectSlot(int selectedSlot) {
         synchronized (this) {
-            this.game.selectSlot(selectedSlot);
+            if (this.game != null) {
+                this.game.selectSlot(selectedSlot);
+            }
         }
     }
 
     public void drawFrame(BufferedImage screenImage) {
         var canvasImage = CanvasImage.from(screenImage);
         var frame = System.currentTimeMillis();
-        DefaultFonts.VANILLA.drawText(canvasImage, (1000 / (frame - previousFrameTime)) + " FPS", 6, 6, 8, CanvasColor.WHITE_LOW);
+        DefaultFonts.VANILLA.drawText(canvasImage, (1000 / (frame - previousFrameTime)) + " FPS", 6, 6, 8, CanvasColor.WHITE_HIGH);
         CanvasUtils.draw(this.canvas, DRAW_OFFSET_X, DRAW_OFFSET_Y, canvasImage);
         previousFrameTime = frame;
         this.canvas.sendUpdates();
@@ -230,19 +244,25 @@ public class GameCanvas {
 
     public void pressE() {
         synchronized (this) {
-            this.game.pressE();
+            if (this.game != null) {
+                this.game.pressE();
+            }
         }
     }
 
     public void pressQ() {
         synchronized (this) {
-            this.game.pressQ();
+            if (this.game != null) {
+                this.game.pressQ();
+            }
         }
     }
 
     public void pressF() {
         synchronized (this) {
-            this.game.pressF();
+            if (this.game != null) {
+                this.game.pressF();
+            }
         }
     }
 
@@ -255,10 +275,29 @@ public class GameCanvas {
     public void tick() {
         if (this.game != null) {
             this.game.tick();
+
         }
     }
 
     public void pressMouseLeft(boolean down) {
-        this.game.pressMouseLeft(down);
+        if (this.game != null) {
+            this.game.pressMouseLeft(down);
+        }
+    }
+
+    public void playSound(SoundEvent soundEvent, float pitch, float volume) {
+        this.playerInterface.playSound(soundEvent, pitch, volume);
+    }
+
+
+    public interface PlayerInterface {
+        PlayerInterface NO_OP = new PlayerInterface() {
+            @Override
+            public void playSound(SoundEvent soundEvent, float pitch, float volume) {
+
+            }
+        };
+
+        void playSound(SoundEvent soundEvent, float pitch, float volume);
     }
 }

@@ -31,6 +31,8 @@ dependencies {
 	// Plasmid
 	modImplementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
 
+	implementation include("net.raphimc:NoteBlockLib:3.0.0")
+
 	implementation files('jars/mochadoom.jar')
 }
 

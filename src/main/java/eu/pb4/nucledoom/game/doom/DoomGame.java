@@ -1,10 +1,14 @@
-package eu.pb4.nucledoom.game;
+package eu.pb4.nucledoom.game.doom;
 
 import doom.*;
+import eu.pb4.nucledoom.NucleDoom;
+import eu.pb4.nucledoom.game.GameCanvas;
 import g.Signals;
+import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.PlayerInput;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.VolatileImage;
 import java.io.IOException;
 import java.util.List;
 
@@ -30,7 +34,7 @@ public class DoomGame {
     public DoomGame(GameCanvas gameCanvas) throws IOException {
         this.canvas = gameCanvas;
         GAME.set(this);
-        this.cvar = new CVarManager(List.of());
+        this.cvar = new CVarManager(List.of("-multiply", "1", "-hicolor"));
         this.cvar.override(CommandVariable.MULTIPLY, 1, 0);
         this.config = new ConfigManager();
         this.doom = new DoomMain<>();
@@ -64,7 +68,17 @@ public class DoomGame {
             throw new RuntimeException("Closed!");
         }
 
-        this.canvas.drawFrame((BufferedImage) this.doom.graphicSystem.getScreenImage());
+        var image = this.doom.graphicSystem.getScreenImage();
+        BufferedImage bufferedImage;
+        if (image instanceof BufferedImage buf) {
+            bufferedImage = buf;
+        } else if (image instanceof VolatileImage volatileImage) {
+            bufferedImage = volatileImage.getSnapshot();
+        } else {
+            bufferedImage = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        }
+
+        this.canvas.drawFrame(bufferedImage);
         if (this.resentMouse) {
             this.doom.PostEvent(this.mouseEvent);
             this.resentMouse = false;
@@ -156,5 +170,13 @@ public class DoomGame {
                 this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keyup, sig));
             }
         }
+
+        if (NucleDoom.IS_DEV) {
+            SoundMap.updateSoundMap();
+        }
+    }
+
+    public void playSound(SoundEvent soundEvent, float pitch, float volume) {
+        this.canvas.playSound(soundEvent, pitch, volume);
     }
 }

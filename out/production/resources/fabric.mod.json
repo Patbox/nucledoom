@@ -13,7 +13,7 @@
 	},
 	"entrypoints": {
 		"main": [
-          "eu.pb4.nucledoom.DoomBox"
+          "eu.pb4.nucledoom.NucleDoom"
 		]
 	},
 	"mixins": [

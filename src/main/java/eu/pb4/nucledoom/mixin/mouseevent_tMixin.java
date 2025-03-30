@@ -8,8 +8,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import java.awt.*;
 
 @SuppressWarnings("ALL")
-@Mixin(event_t.mouseevent_t.class)
+@Mixin(value = event_t.mouseevent_t.class, remap = false)
 public class mouseevent_tMixin {
-    @Overwrite
+    @Overwrite(remap = false)
     public void resetIn(Robot robot, Point windowOffset, int centreX, int centreY) {}
 }

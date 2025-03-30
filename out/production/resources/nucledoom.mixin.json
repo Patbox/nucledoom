@@ -2,9 +2,13 @@
   "required": true,
   "package": "eu.pb4.nucledoom.mixin",
   "compatibilityLevel": "JAVA_21",
+  "plugin": "eu.pb4.nucledoom.NucleDoomHeadlessFix",
   "mixins": [
     "EngineMixin",
-    "mouseevent_tMixin"
+    "IMusicMixin",
+    "ISoundDriverMixin",
+    "mouseevent_tMixin",
+    "SoftwareParallelVideoRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

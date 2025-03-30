@@ -1,11 +1,6 @@
 package eu.pb4.nucledoom.game;
 
-import eu.pb4.nucledoom.game.audio.AudioController;
 import eu.pb4.mapcanvas.api.utils.VirtualDisplay;
-import eu.pb4.polymer.core.api.entity.PolymerEntityUtils;
-import eu.pb4.polymer.core.api.utils.PolymerUtils;
-import eu.pb4.polymer.virtualentity.api.VirtualEntityUtils;
-import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.Entity;
@@ -16,14 +11,16 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.passive.MuleEntity;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.*;
 import net.minecraft.network.packet.s2c.play.*;
+import net.minecraft.registry.Registries;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
@@ -48,8 +45,9 @@ import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
 import java.util.EnumSet;
 import java.util.Objects;
+import java.util.Random;
 
-public class DoomGameController implements GamePlayerEvents.Add, GameActivityEvents.Destroy, GameActivityEvents.Tick, GameActivityEvents.Enable, GamePlayerEvents.Remove, GamePlayerEvents.Accept, PlayerDamageEvent, PlayerDeathEvent, PlayerC2SPacketEvent {
+public class DoomGameController implements GameCanvas.PlayerInterface, GamePlayerEvents.Add, GameActivityEvents.Destroy, GameActivityEvents.Tick, GameActivityEvents.Enable, GamePlayerEvents.Remove, GamePlayerEvents.Accept, PlayerDamageEvent, PlayerDeathEvent, PlayerC2SPacketEvent {
     private final Thread thread;
     private final GameSpace gameSpace;
     private final ServerWorld world;
@@ -58,8 +56,6 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
     private final VirtualDisplay display;
     private final Entity cameraEntity;
     private ServerPlayerEntity player;
-    private volatile boolean runs = true;
-    private int playerCount = 0;
     private boolean hasStarted = false;
 
     public DoomGameController(GameSpace gameSpace, ServerWorld world, DoomConfig config, GameCanvas canvas, Entity cameraEntity, VirtualDisplay display) {
@@ -71,6 +67,7 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
         this.canvas = canvas;
         this.display = display;
         this.thread = new Thread(this::runThread);
+        canvas.setPlayerInterface(this);
     }
 
     public static void setRules(GameActivity activity) {
@@ -105,9 +102,10 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
                 .setGenerator(new VoidChunkGenerator(context.server()));
 
 
-        GameCanvas canvas = new GameCanvas(config, AudioController.NOOP);
 
         return context.openWithWorld(worldConfig, (activity, world) -> {
+            GameCanvas canvas = new GameCanvas(config);
+
             VirtualDisplay display = VirtualDisplay.builder(canvas.getCanvas(), canvas.getDisplayPos(), Direction.SOUTH)
                     .invisible()
                     .build();
@@ -135,6 +133,7 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
             DoomGameController phase = new DoomGameController(activity.getGameSpace(), world, config, canvas, camera, display);
             //audioController.setOutput(camera, leftAudio, rightAudio, activity.getGameSpace().getPlayers()::sendPacket);
             DoomGameController.setRules(activity);
+
 
             PlayerLimiter.addTo(activity, new PlayerLimiterConfig(1));
 
@@ -167,7 +166,6 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
         this.canvas.destroy();
         this.display.destroy();
         this.display.getCanvas().destroy();
-        this.runs = false;
     }
 
     @Override
@@ -218,6 +216,10 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
 
     @Override
     public void onTick() {
+        if (this.player == null) {
+            return;
+        }
+
         if (!this.hasStarted) {
             this.thread.start();
             world.setBlockState(this.cameraEntity.getBlockPos(), Blocks.BARRIER.getDefaultState());
@@ -230,6 +232,7 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
             }
         }
         this.canvas.tick();
+        this.player.networkHandler.sendPacket(new StopSoundS2CPacket(null, SoundCategory.BLOCKS));
     }
 
 
@@ -256,7 +259,6 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
         if (acceptor.intent().canPlay()) {
             return acceptor.teleport(this.world, spawnPos).thenRunForEach(player -> {
                 this.player = player;
-                this.playerCount++;
                 this.spawnMount(spawnPos.add(0, 10, 0), player);
                 this.initializePlayer(player, GameMode.SURVIVAL);
             });
@@ -340,5 +342,17 @@ public class DoomGameController implements GamePlayerEvents.Add, GameActivityEve
 
     private StatusEffectInstance createInfiniteStatusEffect(RegistryEntry<StatusEffect> statusEffect) {
         return new StatusEffectInstance(statusEffect, StatusEffectInstance.INFINITE, 0, true, false);
+    }
+
+    @Override
+    public void playSound(SoundEvent soundEvent, float pitch, float volume) {
+        this.gameSpace.getPlayers().sendPacket(new PlaySoundFromEntityS2CPacket(
+                Registries.SOUND_EVENT.getEntry(soundEvent),
+                SoundCategory.MASTER,
+                this.cameraEntity,
+                volume,
+                pitch,
+                new Random().nextLong()
+        ));
     }
 }
