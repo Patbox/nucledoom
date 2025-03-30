@@ -3,6 +3,7 @@ package eu.pb4.nucledoom.game;
 import eu.pb4.mapcanvas.api.core.*;
 import eu.pb4.mapcanvas.api.font.DefaultFonts;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
+import eu.pb4.mapcanvas.api.utils.ViewUtils;
 import eu.pb4.nucledoom.NucleDoom;
 import eu.pb4.nucledoom.game.doom.DoomGame;
 import net.fabricmc.loader.api.FabricLoader;
@@ -26,7 +27,7 @@ public class GameCanvas {
 
     private static final CanvasImage DEFAULT_BACKGROUND = readImage("default_background");
     private static final CanvasImage DEFAULT_OVERLAY = readImage("default_overlay");
-    private static final int BACKGROUND_SCALE = 2;
+    private static final int BACKGROUND_SCALE = 1;
 
     private Throwable error;
     private float mouseX;
@@ -48,14 +49,18 @@ public class GameCanvas {
     private static final int RENDER_SCALE = 1;
     private static final int MAP_SIZE = FilledMapItem.field_30907;
 
-    private static final int SCREEN_WIDTH = 320;
-    private static final int SCREEN_HEIGHT = 200;
-    private static final int SECTION_SIZE = MathHelper.ceil(SCREEN_WIDTH * RENDER_SCALE / (double) MAP_SIZE);
-    private static final int SECTION_HEIGHT = 5;
-    private static final int SECTION_WIDTH = 8;
+    private static  final int DEFAULT_SCREEN_WIDTH = 320;
+    private static final int DEFAULT_SCREEN_HEIGHT = 200;
 
-    private static final int DRAW_OFFSET_X = (SECTION_WIDTH * 64 - SCREEN_WIDTH / 2);
-    private static final int DRAW_OFFSET_Y = (SECTION_HEIGHT * 64 - SCREEN_HEIGHT / 2);
+    private final int scale;
+
+    private final int screenWidth;
+    private final int screenHeight;
+    private final int sectionHeight;
+    private final int sectionWidth;
+
+    private final int drawOffsetX;
+    private final int drawOffsetY;
 
     private final DoomConfig config;
 
@@ -69,12 +74,20 @@ public class GameCanvas {
     public GameCanvas(DoomConfig config) {
         this.config = config;
 
-        this.canvas = DrawableCanvas.create(SECTION_WIDTH, SECTION_HEIGHT);
+        this.scale = 1;
+        this.screenHeight = DEFAULT_SCREEN_HEIGHT * scale;
+        this.screenWidth = DEFAULT_SCREEN_WIDTH * scale;
+        this.sectionHeight = 5 * scale;
+        this.sectionWidth = 8 * scale;
+        this.drawOffsetX = sectionWidth * 64 - screenWidth / 2;
+        this.drawOffsetY = sectionHeight * 64 - screenHeight / 2;
+
+        this.canvas = DrawableCanvas.create(sectionWidth, sectionHeight);
         CanvasUtils.clear(this.canvas, CanvasColor.GRAY_HIGH);
         if (DEFAULT_BACKGROUND != null) {
             var background = DEFAULT_BACKGROUND;
-            var width = background.getWidth() * BACKGROUND_SCALE;
-            var height = background.getHeight() * BACKGROUND_SCALE;
+            var width = background.getWidth() * BACKGROUND_SCALE * scale;
+            var height = background.getHeight() * BACKGROUND_SCALE * scale;
             var repeatsX = Math.ceilDiv(this.canvas.getWidth(), width);
             var repeatsY = Math.ceilDiv(this.canvas.getHeight(), height);
 
@@ -87,10 +100,12 @@ public class GameCanvas {
 
         if (DEFAULT_OVERLAY != null) {
             var background = DEFAULT_OVERLAY;
-            var width = background.getWidth() * BACKGROUND_SCALE;
-            var height = background.getHeight() * BACKGROUND_SCALE;
+            var width = background.getWidth() * BACKGROUND_SCALE * scale;
+            var height = background.getHeight() * BACKGROUND_SCALE * scale;
             CanvasUtils.draw(this.canvas, this.canvas.getWidth() / 2 - width / 2, this.canvas.getHeight() / 2 - height / 2, width, height, background);
         }
+
+        CanvasUtils.fill(this.canvas, drawOffsetX, drawOffsetY, drawOffsetX + screenWidth, drawOffsetY + screenHeight, CanvasColor.BLACK_NORMAL);
 
         var text = """
                         ↑ | [W]
@@ -106,8 +121,8 @@ public class GameCanvas {
                     """;
 
 
-        DefaultFonts.VANILLA.drawText(this.canvas, text, DRAW_OFFSET_X - 78, DRAW_OFFSET_Y + SCREEN_HEIGHT - 59, 8, CanvasColor.BLACK_HIGH);
-        DefaultFonts.VANILLA.drawText(this.canvas, text, DRAW_OFFSET_X - 79, DRAW_OFFSET_Y + SCREEN_HEIGHT - 60, 8, CanvasColor.WHITE_HIGH);
+        DefaultFonts.VANILLA.drawText(this.canvas, text, drawOffsetX - 78, drawOffsetY + screenHeight - 59, 8, CanvasColor.BLACK_HIGH);
+        DefaultFonts.VANILLA.drawText(this.canvas, text, drawOffsetX - 79, drawOffsetY + screenHeight - 60, 8, CanvasColor.WHITE_HIGH);
     }
 
     public void setPlayerInterface(PlayerInterface playerInterface) {
@@ -117,11 +132,11 @@ public class GameCanvas {
     private void drawError(Throwable e) {
         var width = DefaultFonts.VANILLA.getTextWidth("ERROR!", 16);
 
-        CanvasUtils.fill(this.canvas, (SCREEN_WIDTH - width) / 2 - 5 + DRAW_OFFSET_X, 11 + DRAW_OFFSET_Y,
-                (SCREEN_WIDTH - width) / 2 + width + 5 + DRAW_OFFSET_X, 16 * 2 + 5 + DRAW_OFFSET_Y, CanvasColor.BLUE_HIGH);
+        CanvasUtils.fill(this.canvas, (screenWidth - width) / 2 - 5 + drawOffsetX, 11 + drawOffsetY,
+                (screenWidth - width) / 2 + width + 5 + drawOffsetX, 16 * 2 + 5 + drawOffsetY, CanvasColor.BLUE_HIGH);
         //CanvasUtils.fill(this.canvas, 0, 0, SCREEN_HEIGHT, SCREEN_WIDTH, CanvasColor.BLUE_HIGH);
-        DefaultFonts.VANILLA.drawText(this.canvas, "ERROR!", (SCREEN_WIDTH - width) / 2 + 1 + DRAW_OFFSET_X, 17 + DRAW_OFFSET_Y, 16, CanvasColor.BLACK_LOW);
-        DefaultFonts.VANILLA.drawText(this.canvas, "ERROR!", (SCREEN_WIDTH - width) / 2 + DRAW_OFFSET_X, 16 + DRAW_OFFSET_Y, 16, CanvasColor.RED_HIGH);
+        DefaultFonts.VANILLA.drawText(this.canvas, "ERROR!", (screenWidth - width) / 2 + 1 + drawOffsetX, 17 + drawOffsetY, 16, CanvasColor.BLACK_LOW);
+        DefaultFonts.VANILLA.drawText(this.canvas, "ERROR!", (screenWidth - width) / 2 + drawOffsetX, 16 + drawOffsetY, 16, CanvasColor.RED_HIGH);
 
         String message1;
         String message2;
@@ -136,7 +151,7 @@ public class GameCanvas {
         var builder = new StringBuilder();
 
         for (var x : message2.toCharArray()) {
-            if (x == '\n' || DefaultFonts.VANILLA.getTextWidth(builder.toString() + x, 8) > SCREEN_WIDTH - 10) {
+            if (x == '\n' || DefaultFonts.VANILLA.getTextWidth(builder.toString() + x, 8) > screenWidth - 10) {
                 message2Split.add(builder.toString());
                 builder = new StringBuilder();
             }
@@ -146,22 +161,22 @@ public class GameCanvas {
         }
         message2Split.add(builder.toString());
 
-        CanvasUtils.fill(this.canvas, 0 + DRAW_OFFSET_X, 63 + DRAW_OFFSET_Y,
-                SCREEN_WIDTH + DRAW_OFFSET_X, 65 + 8 + DRAW_OFFSET_Y, CanvasColor.BLUE_HIGH);
+        CanvasUtils.fill(this.canvas, 0 + drawOffsetX, 63 + drawOffsetY,
+                screenWidth + drawOffsetX, 65 + 8 + drawOffsetY, CanvasColor.BLUE_HIGH);
 
-        DefaultFonts.VANILLA.drawText(this.canvas, message1, 5 + DRAW_OFFSET_X, 64 + DRAW_OFFSET_Y, 8, CanvasColor.WHITE_HIGH);
+        DefaultFonts.VANILLA.drawText(this.canvas, message1, 5 + drawOffsetX, 64 + drawOffsetY, 8, CanvasColor.WHITE_HIGH);
 
-        CanvasUtils.fill(this.canvas, 0 + DRAW_OFFSET_X, 63 + 10 + DRAW_OFFSET_Y,
-                SCREEN_WIDTH + DRAW_OFFSET_X, 65 + 10 + message2Split.size() * 10 + DRAW_OFFSET_Y, CanvasColor.BLUE_HIGH);
+        CanvasUtils.fill(this.canvas, 0 + drawOffsetX, 63 + 10 + drawOffsetY,
+                screenWidth + drawOffsetX, 65 + 10 + message2Split.size() * 10 + drawOffsetY, CanvasColor.BLUE_HIGH);
         for (int i = 0; i < message2Split.size(); i++) {
-            DefaultFonts.VANILLA.drawText(this.canvas, message2Split.get(i), 5 + DRAW_OFFSET_X, 64 + 10 + 10 * i + DRAW_OFFSET_Y, 8, CanvasColor.WHITE_HIGH);
+            DefaultFonts.VANILLA.drawText(this.canvas, message2Split.get(i), 5 + drawOffsetX, 64 + 10 + 10 * i + drawOffsetY, 8, CanvasColor.WHITE_HIGH);
         }
     }
 
     public void start() {
         synchronized (this) {
             try {
-                this.game = new DoomGame(this);
+                this.game = new DoomGame(this, this.scale);
             } catch (Throwable e) {
                 this.error = e;
                 this.drawError(e);
@@ -187,13 +202,13 @@ public class GameCanvas {
 
 
     public BlockPos getDisplayPos() {
-        return new BlockPos(-SECTION_WIDTH, SECTION_HEIGHT + 100, 0);
+        return new BlockPos(-sectionWidth, sectionHeight + 100, 0);
     }
 
     public Vec3d getSpawnPos() {
         BlockPos displayPos = this.getDisplayPos();
 
-        return new Vec3d(displayPos.getX() + SECTION_WIDTH * 0.5, displayPos.getY() - SECTION_HEIGHT * 0.5f + 1, 1.5);
+        return new Vec3d(displayPos.getX() + sectionWidth * 0.5, displayPos.getY() - sectionHeight * 0.5f + 1, 1.5 * scale + 0.01f);
     }
 
     public int getSpawnAngle() {
@@ -236,8 +251,22 @@ public class GameCanvas {
     public void drawFrame(BufferedImage screenImage) {
         var canvasImage = CanvasImage.from(screenImage);
         var frame = System.currentTimeMillis();
-        DefaultFonts.VANILLA.drawText(canvasImage, (1000 / (frame - previousFrameTime)) + " FPS", 6, 6, 8, CanvasColor.WHITE_HIGH);
-        CanvasUtils.draw(this.canvas, DRAW_OFFSET_X, DRAW_OFFSET_Y, canvasImage);
+
+        /*if (DEFAULT_OVERLAY != null) {
+            var background = DEFAULT_OVERLAY;
+            var width = background.getWidth() * BACKGROUND_SCALE * scale;
+            var height = background.getHeight() * BACKGROUND_SCALE * scale;
+            var yStart = this.canvas.getHeight() / 2 - height / 2;
+            var height2 = this.drawOffsetY - yStart;
+
+            CanvasUtils.draw(this.canvas, this.canvas.getWidth() / 2 - width / 2, yStart, width, height,
+                    ViewUtils.subView(background, 0, 0, background.getWidth(), background.getHeight()));
+        }*/
+        var text = String.format("%s - FPS: %.2f", "Doom", (1000f / (frame - previousFrameTime)));
+        DefaultFonts.UNIFONT.drawText(this.canvas, text, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
+
+        CanvasUtils.draw(this.canvas, drawOffsetX, drawOffsetY, canvasImage);
+
         previousFrameTime = frame;
         this.canvas.sendUpdates();
     }

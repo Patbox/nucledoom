@@ -1,27 +1,25 @@
 package eu.pb4.nucledoom.game.doom;
 
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
 import net.raphimc.noteblocklib.data.MinecraftInstrument;
 import net.raphimc.noteblocklib.format.midi.MidiIo;
-import net.raphimc.noteblocklib.format.midi.model.MidiSong;
 import net.raphimc.noteblocklib.format.nbs.model.NbsCustomInstrument;
 import net.raphimc.noteblocklib.model.Note;
 import net.raphimc.noteblocklib.model.Song;
 import net.raphimc.noteblocklib.player.SongPlayer;
-import org.jetbrains.annotations.Nullable;
 import s.IMusic;
 import s.MusReader;
 
 import javax.sound.midi.*;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.time.Duration;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level;
 
 public class MinecraftMusicDriver implements IMusic {
     private final DoomGame game;

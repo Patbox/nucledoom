@@ -31,11 +31,10 @@ public class DoomGame {
     private boolean resentMouse;
 
 
-    public DoomGame(GameCanvas gameCanvas) throws IOException {
+    public DoomGame(GameCanvas gameCanvas, int scale) throws IOException {
         this.canvas = gameCanvas;
         GAME.set(this);
-        this.cvar = new CVarManager(List.of("-multiply", "1", "-hicolor"));
-        this.cvar.override(CommandVariable.MULTIPLY, 1, 0);
+        this.cvar = new CVarManager(List.of("-multiply", String.valueOf(scale), "-hicolor"));
         this.config = new ConfigManager();
         this.doom = new DoomMain<>();
     }
@@ -50,7 +49,10 @@ public class DoomGame {
 
     public void clear() {
         GAME.remove();
+        this.doom.soundDriver.ShutdownSound();
+        this.doom.music.ShutdownMusic();
         this.close = true;
+        this.doom.wadLoader.CloseAllHandles();
     }
 
     public CVarManager getCvarManager() {
@@ -147,6 +149,7 @@ public class DoomGame {
     }
 
     public void pressQ() {
+        this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keydown, Signals.ScanCode.SC_BACKSPACE));
         this.pressQ = 5;
     }
 
@@ -162,6 +165,10 @@ public class DoomGame {
 
         if (--pressE == 0) {
             this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keyup, Signals.ScanCode.SC_E));
+        }
+
+        if (--pressQ == 0) {
+            this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keyup, Signals.ScanCode.SC_BACKSPACE ));
         }
 
         for (int i = 0; i < 9; i++) {

@@ -24,6 +24,7 @@ public interface SoundMap {
 
     static void updateSoundMap() {
         MAP.clear();
+        put("punch", SoundEvents.ENTITY_PLAYER_ATTACK_STRONG);
         put("pistol", SoundEvents.ITEM_CROSSBOW_SHOOT);
         put("shotgn", new Sound(SoundEvents.ENTITY_DRAGON_FIREBALL_EXPLODE, 1, 0.8f));
         put("sgcock", SoundEvents.ITEM_CROSSBOW_LOADING_START.value());
@@ -40,7 +41,7 @@ public interface SoundMap {
         put("pstop", SoundEvents.BLOCK_PISTON_CONTRACT);
         put("doropn", SoundEvents.BLOCK_PISTON_EXTEND);
         put("dorcls", SoundEvents.BLOCK_PISTON_CONTRACT);
-        put("stnmov", SoundEvents.BLOCK_GRINDSTONE_USE);
+        put("stnmov", SoundEvents.BLOCK_STONE_STEP);
         put("swtchn", SoundEvents.BLOCK_LEVER_CLICK);
         put("swtchx", SoundEvents.BLOCK_STONE_BUTTON_CLICK_OFF);
         put("plpain", SoundEvents.ENTITY_ZOMBIE_VILLAGER_HURT);

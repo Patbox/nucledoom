@@ -20,6 +20,7 @@ public class NucleDoom implements ModInitializer {
 	public void onInitialize() {
 		System.setProperty("java.awt.headless", "true");
 		SoundMap.updateSoundMap();
+		ExtraFonts.load();
 	}
 
 	public static Identifier identifier(String path) {
