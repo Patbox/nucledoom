@@ -1,6 +1,6 @@
 # Compiled class file
 *.class
-
+.idea
 # Log file
 *.log
 
@@ -11,7 +11,6 @@
 .mtj.tmp/
 
 # Package Files #
-*.jar
 *.war
 *.nar
 *.ear
@@ -24,9 +23,6 @@ hs_err_pid*
 replay_pid*
 
 .gradle/
-gradlew
-gradlew.bat
-gradle/wrapper/
 .project
 .settings/
 

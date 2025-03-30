@@ -1,16 +1,27 @@
 package eu.pb4.nucledoom.game;
 
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import eu.pb4.nucledoom.NucleDoom;
+import net.minecraft.util.Identifier;
 
-public record DoomConfig() {
+import java.util.List;
+import java.util.Map;
 
-	public static final MapCodec<DoomConfig> CODEC = MapCodec.unit(new DoomConfig());/*RecordCodecBuilder.mapCodec(instance -> {
-		return instance.group(
-			Identifier.CODEC.fieldOf("game").forGetter(DoomConfig::game),
-			Codecs.VECTOR_3F.xmap(Vec3d::new, Vec3d::toVector3f).optionalFieldOf("spectator_spawn_offset", DEFAULT_SPECTATOR_SPAWN_OFFSET).forGetter(DoomConfig::spectatorSpawnOffset),
-			Codec.intRange(1, 4).optionalFieldOf("players", 1).forGetter(DoomConfig::playerCount),
-			Codec.BOOL.optionalFieldOf("swap_x_z", false).forGetter(DoomConfig::swapXZ),
-			Codec.BOOL.optionalFieldOf("save", false).forGetter(DoomConfig::save)
-		).apply(instance, DoomConfig::new);
-	});*/
+public record DoomConfig(List<String> cvars, Map<String, Identifier> resourceMap) {
+
+    public static final MapCodec<DoomConfig> CODEC = RecordCodecBuilder.mapCodec(instance -> {
+        return instance.group(
+                Codec.STRING.listOf().optionalFieldOf("cvars", List.of()).forGetter(DoomConfig::cvars),
+                Codec.unboundedMap(Codec.STRING, Identifier.CODEC).optionalFieldOf("resources", createDefaultResourceMap()).forGetter(DoomConfig::resourceMap)
+        ).apply(instance, DoomConfig::new);
+    });
+
+    private static Map<String, Identifier> createDefaultResourceMap() {
+        return Map.of(
+                "doom1.wad", Identifier.of(NucleDoom.MOD_ID, "wads/doomshareware/doom1.wad"),
+                "mochadoom.cfg", Identifier.of(NucleDoom.MOD_ID, "default_config.cfg")
+        );
+    }
 }

@@ -2,23 +2,32 @@ package eu.pb4.nucledoom.game.doom;
 
 import doom.*;
 import eu.pb4.nucledoom.NucleDoom;
+import eu.pb4.nucledoom.game.DoomConfig;
 import eu.pb4.nucledoom.game.GameCanvas;
 import g.Signals;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resource.ResourceManager;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.PlayerInput;
+import org.jetbrains.annotations.Nullable;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.VolatileImage;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class DoomGame {
     public static final ThreadLocal<DoomGame> GAME = new ThreadLocal<>();
 
     private final DoomMain<?, ?> doom;
     private final CVarManager cvar;
-    private final ConfigManager config;
+    private final DoomConfig config;
     private final GameCanvas canvas;
+    private final ConfigManager configManager;
 
     private volatile boolean close = false;
     private PlayerInput input = PlayerInput.DEFAULT;
@@ -31,11 +40,15 @@ public class DoomGame {
     private boolean resentMouse;
 
 
-    public DoomGame(GameCanvas gameCanvas, int scale) throws IOException {
+    public DoomGame(GameCanvas gameCanvas, ResourceManager resourceManager, int scale) throws IOException {
         this.canvas = gameCanvas;
+        this.config = this.canvas.getConfig();
         GAME.set(this);
-        this.cvar = new CVarManager(List.of("-multiply", String.valueOf(scale), "-hicolor"));
-        this.config = new ConfigManager();
+        var cvars = new ArrayList<String>();
+        cvars.addAll(List.of("-multiply", String.valueOf(scale), "-novolatileimage"));
+        cvars.addAll(config.cvars());
+        this.cvar = new CVarManager(cvars);
+        this.configManager = new ConfigManager();
         this.doom = new DoomMain<>();
     }
 
@@ -60,7 +73,7 @@ public class DoomGame {
     }
 
     public ConfigManager getConfigManager() {
-        return config;
+        return configManager;
     }
 
     public void drawFrame() {
@@ -123,7 +136,7 @@ public class DoomGame {
         double e = d * d * d;
         double f = e * 8.0;
 
-        this.mouseEvent.x = (int) (v * 2.8 / 0.15 / f) ;
+        this.mouseEvent.x = (int) (v * 4 / 0.15 / f) ;
         this.doom.PostEvent(this.mouseEvent);
         this.resentMouse = true;
     }
@@ -179,11 +192,57 @@ public class DoomGame {
         }
 
         if (NucleDoom.IS_DEV) {
-            SoundMap.updateSoundMap();
+            //SoundMap.updateSoundMap();
         }
     }
 
     public void playSound(SoundEvent soundEvent, float pitch, float volume) {
         this.canvas.playSound(soundEvent, pitch, volume);
+    }
+
+    @Nullable
+    public Supplier<InputStream> getResourceStream(String path) {
+        if (path.startsWith("./")) {
+            path = path.substring("./".length());
+        }
+
+        var remap = this.config.resourceMap().get(path);
+        if (remap != null) {
+            var resource = this.canvas.getServer().getResourceManager().getResource(remap);
+            if (resource.isPresent()) {
+                return () -> {
+                    try {
+                        return resource.get().getInputStream();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                };
+            }
+        }
+
+        if (path.equals("mochadoom.cfg")) {
+            return () -> {
+                try {
+                    return Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get().findPath("data/nucledoom/default_config.cfg").get());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            };
+        }
+
+
+        var pth = FabricLoader.getInstance().getGameDir().resolve(path);
+
+        if (Files.exists(pth)) {
+            return () -> {
+                try {
+                    return Files.newInputStream(pth);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            };
+        }
+
+        return null;
     }
 }

@@ -1,0 +1,9 @@
+{
+  "type": "nucledoom:doom",
+  "name": "Freedoom: Phase 2",
+  "description": [],
+  "icon": "tnt",
+  "resources": {
+    "freedoom2.wad": "nucledoom:wads/freedoom/freedoom2.wad"
+  }
+}

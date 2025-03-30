@@ -4,10 +4,13 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "eu.pb4.nucledoom.NucleDoomHeadlessFix",
   "mixins": [
+    "C2JUtilsMixin",
     "EngineMixin",
     "IMusicMixin",
+    "InputStreamSugarMixin",
     "ISoundDriverMixin",
     "mouseevent_tMixin",
+    "ResourceIOMixin",
     "SoftwareParallelVideoRendererMixin",
     "WadLoaderMixin"
   ],

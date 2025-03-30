@@ -12,13 +12,17 @@ import java.nio.file.Path;
 
 public class ExtraFonts {
     public static final CanvasFont OPEN_ZOO_4x6;
+    public static final CanvasFont OPEN_ZOO_4x8;
 
     static {
         {
             CanvasFont openZoo4x6;
+            CanvasFont openZoo4x8;
 
-            var texturePathZoo = FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID)
+            var texture4x6 = FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID)
                     .get().findPath("map/openzoo/4x6.png").get();
+            var texture4x8 = FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID)
+                    .get().findPath("map/openzoo/4x8.png").get();
             var emptyGlyph = BitmapFontBuilder.Glyph.of(1, 1);
 
             var b = new byte[256];
@@ -28,17 +32,21 @@ public class ExtraFonts {
             }
 
             try {
-                var builderSmall = BitmapFontBuilder.create();
+                var builder4x6 = BitmapFontBuilder.create();
+                var builder4x8 = BitmapFontBuilder.create();
 
-                buildFontZoo(texturePathZoo, builderSmall, 4, 6, b);
+                buildFontZoo(texture4x6, builder4x6, 4, 6, b);
+                buildFontZoo(texture4x8, builder4x8, 4, 8, b);
 
-                openZoo4x6 = builderSmall.defaultGlyph(emptyGlyph).build();
+                openZoo4x6 = builder4x6.defaultGlyph(emptyGlyph).build();
+                openZoo4x8 = builder4x8.defaultGlyph(emptyGlyph).build();
             } catch (Throwable e) {
                 e.printStackTrace();
-                openZoo4x6 = DefaultFonts.VANILLA;
+                openZoo4x6 = openZoo4x8 = DefaultFonts.VANILLA;
             }
 
             OPEN_ZOO_4x6 = openZoo4x6;
+            OPEN_ZOO_4x8 = openZoo4x8;
         }
     }
     
@@ -53,7 +61,7 @@ public class ExtraFonts {
             int xStart = column * fontWidth;
             int yStart = row * fontHeight;
 
-            var glyph = BitmapFontBuilder.Glyph.of(fontWidth, fontHeight).logicalHeight(fontHeight).charWidth(fontWidth);
+            var glyph = BitmapFontBuilder.Glyph.of(fontWidth, fontHeight).logicalHeight(fontHeight);
 
             for (int x = 0; x < fontWidth;  x++) {
                 for (int y = 0; y < fontHeight; y++) {

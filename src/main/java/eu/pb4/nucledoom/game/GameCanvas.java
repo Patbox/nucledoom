@@ -1,13 +1,16 @@
 package eu.pb4.nucledoom.game;
 
+import doom.ConfigManager;
 import eu.pb4.mapcanvas.api.core.*;
 import eu.pb4.mapcanvas.api.font.DefaultFonts;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
 import eu.pb4.mapcanvas.api.utils.ViewUtils;
+import eu.pb4.nucledoom.ExtraFonts;
 import eu.pb4.nucledoom.NucleDoom;
 import eu.pb4.nucledoom.game.doom.DoomGame;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.item.FilledMapItem;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.BlockPos;
@@ -27,7 +30,10 @@ public class GameCanvas {
 
     private static final CanvasImage DEFAULT_BACKGROUND = readImage("default_background");
     private static final CanvasImage DEFAULT_OVERLAY = readImage("default_overlay");
+    private static final CanvasImage DEFAULT_OVERLAY_RESET = readImage("default_overlay_reset");
     private static final int BACKGROUND_SCALE = 1;
+    private final MinecraftServer server;
+    private final String title;
 
     private Throwable error;
     private float mouseX;
@@ -71,8 +77,10 @@ public class GameCanvas {
     private long previousFrameTime = -1;
     private DoomGame game = null;
 
-    public GameCanvas(DoomConfig config) {
+    public GameCanvas(DoomConfig config, String title, MinecraftServer server) {
         this.config = config;
+        this.server = server;
+        this.title = title;
 
         this.scale = 1;
         this.screenHeight = DEFAULT_SCREEN_HEIGHT * scale;
@@ -107,22 +115,22 @@ public class GameCanvas {
 
         CanvasUtils.fill(this.canvas, drawOffsetX, drawOffsetY, drawOffsetX + screenWidth, drawOffsetY + screenHeight, CanvasColor.BLACK_NORMAL);
 
+        DefaultFonts.UNIFONT.drawText(this.canvas, this.title, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
+
+
         var text = """
-                        ↑ | [W]
-                        → | [D]
-                        ← | [A]
-                        ↓ | [S]
-                        """;
+                Move with WSAD
+                Shift is spring
+                Mouse to look around
+                Left click to shoot
+                Right click to activate
+                1-7 to switch weapon
+                F for pause/menu
+                SPACE to accept
+                Q in menu to go back
+                """;
 
-
-            text += """
-                    X | [Space]
-                    Z | [Shift]
-                    """;
-
-
-        DefaultFonts.VANILLA.drawText(this.canvas, text, drawOffsetX - 78, drawOffsetY + screenHeight - 59, 8, CanvasColor.BLACK_HIGH);
-        DefaultFonts.VANILLA.drawText(this.canvas, text, drawOffsetX - 79, drawOffsetY + screenHeight - 60, 8, CanvasColor.WHITE_HIGH);
+        ExtraFonts.OPEN_ZOO_4x8.drawText(this.canvas, text, drawOffsetX - 88, drawOffsetY + 70, 8, CanvasColor.BLACK_HIGH);
     }
 
     public void setPlayerInterface(PlayerInterface playerInterface) {
@@ -176,7 +184,7 @@ public class GameCanvas {
     public void start() {
         synchronized (this) {
             try {
-                this.game = new DoomGame(this, this.scale);
+                this.game = new DoomGame(this, this.server.getResourceManager(), this.scale);
             } catch (Throwable e) {
                 this.error = e;
                 this.drawError(e);
@@ -252,17 +260,15 @@ public class GameCanvas {
         var canvasImage = CanvasImage.from(screenImage);
         var frame = System.currentTimeMillis();
 
-        /*if (DEFAULT_OVERLAY != null) {
-            var background = DEFAULT_OVERLAY;
+        if (DEFAULT_OVERLAY_RESET != null) {
+            var background = DEFAULT_OVERLAY_RESET;
             var width = background.getWidth() * BACKGROUND_SCALE * scale;
             var height = background.getHeight() * BACKGROUND_SCALE * scale;
-            var yStart = this.canvas.getHeight() / 2 - height / 2;
-            var height2 = this.drawOffsetY - yStart;
 
-            CanvasUtils.draw(this.canvas, this.canvas.getWidth() / 2 - width / 2, yStart, width, height,
-                    ViewUtils.subView(background, 0, 0, background.getWidth(), background.getHeight()));
-        }*/
-        var text = String.format("%s - FPS: %.2f", "Doom", (1000f / (frame - previousFrameTime)));
+            CanvasUtils.draw(this.canvas, this.canvas.getWidth() / 2 - width / 2, this.canvas.getHeight() / 2 - height / 2, width, height,
+                    background);
+        }
+        var text = String.format("%s - FPS: %.2f", this.title, (1000f / (frame - previousFrameTime)));
         DefaultFonts.UNIFONT.drawText(this.canvas, text, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
 
         CanvasUtils.draw(this.canvas, drawOffsetX, drawOffsetY, canvasImage);
@@ -316,6 +322,14 @@ public class GameCanvas {
 
     public void playSound(SoundEvent soundEvent, float pitch, float volume) {
         this.playerInterface.playSound(soundEvent, pitch, volume);
+    }
+
+    public DoomConfig getConfig() {
+        return this.config;
+    }
+
+    public MinecraftServer getServer() {
+        return this.server;
     }
 
 

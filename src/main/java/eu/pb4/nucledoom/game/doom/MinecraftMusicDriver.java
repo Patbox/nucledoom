@@ -5,6 +5,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
+import net.raphimc.noteblocklib.data.MinecraftDefinitions;
 import net.raphimc.noteblocklib.data.MinecraftInstrument;
 import net.raphimc.noteblocklib.format.midi.MidiIo;
 import net.raphimc.noteblocklib.format.nbs.model.NbsCustomInstrument;
@@ -104,7 +105,9 @@ public class MinecraftMusicDriver implements IMusic {
                 data = tmp.toByteArray();
             }
 
-            this.player = new Player(MidiIo.readSong(new ByteArrayInputStream(data), ""));
+            var song = MidiIo.readSong(new ByteArrayInputStream(data), "");
+            song.getNotes().forEach(MinecraftDefinitions::instrumentShiftNote);
+            this.player = new Player(song);
         } catch (Exception e) {
             return -1;
         }

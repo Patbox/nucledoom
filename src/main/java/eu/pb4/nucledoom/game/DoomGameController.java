@@ -33,6 +33,7 @@ import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
 import xyz.nucleoid.plasmid.api.game.*;
 import xyz.nucleoid.plasmid.api.game.common.PlayerLimiter;
 import xyz.nucleoid.plasmid.api.game.common.config.PlayerLimiterConfig;
+import xyz.nucleoid.plasmid.api.game.config.GameConfig;
 import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
 import xyz.nucleoid.plasmid.api.game.player.JoinAcceptor;
@@ -104,7 +105,10 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
 
 
         return context.openWithWorld(worldConfig, (activity, world) -> {
-            GameCanvas canvas = new GameCanvas(config);
+            //noinspection unchecked
+            GameCanvas canvas = new GameCanvas(config,
+                    GameConfig.name((RegistryEntry<GameConfig<?>>) (Object) context.gameConfig()).getString(),
+                    activity.getGameSpace().getServer());
 
             VirtualDisplay display = VirtualDisplay.builder(canvas.getCanvas(), canvas.getDisplayPos(), Direction.SOUTH)
                     .invisible()
