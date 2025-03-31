@@ -3,7 +3,6 @@
   "name": "Doom (Shareware)",
   "description": [],
   "icon": "tnt",
-  "resources": {
-    "doom1.wad": "nucledoom:wads/doomshareware/doom1.wad"
-  }
+  "wad_name": "doom1",
+  "wad": "nucledoom:doomshareware/doom1.wad"
 }

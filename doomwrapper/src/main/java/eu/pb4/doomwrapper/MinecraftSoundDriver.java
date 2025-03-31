@@ -1,16 +1,16 @@
-package eu.pb4.nucledoom.game.doom;
+package eu.pb4.doomwrapper;
 
 import data.sounds;
 import doom.DoomMain;
-import net.minecraft.sound.SoundEvents;
+import eu.pb4.nucledoom.game.SoundTarget;
 import s.AbstractSoundDriver;
 
 import java.util.Random;
 
 public class MinecraftSoundDriver extends AbstractSoundDriver {
-    private final DoomGame game;
+    private final DoomGameImpl game;
 
-    public MinecraftSoundDriver(DoomMain<?, ?> DM, DoomGame doomGame) {
+    public MinecraftSoundDriver(DoomMain<?, ?> DM, DoomGameImpl doomGame) {
         super(DM, 999);
         this.game = doomGame;
     }
@@ -18,16 +18,20 @@ public class MinecraftSoundDriver extends AbstractSoundDriver {
     @Override
     protected int addsfx(int sfxid, int volume, int step, int seperation) {
         var sourceSound = sounds.S_sfx[sfxid];
-        var sounds = SoundMap.MAP.get(sourceSound.name);
-
-        if (sounds != null) {
-            var pitch = new Random().nextFloat(0.85f, 1.15f);
-            var vol = volume / 64f;
-            for (var sound : sounds) {
-                this.game.playSound(sound.event(), pitch * sound.pitch(), vol * sound.volume());
+        var pitch = new Random().nextFloat(0.85f, 1.15f);
+        var vol = volume / 128f;
+        if (this.game.supportsSoundTarget(SoundTarget.SFX_EXT)) {
+            this.game.playSound(SoundTarget.SFX_EXT, SoundMap.DOOM_MAP.get(sourceSound.name), pitch, vol);
+        }
+        if (this.game.supportsSoundTarget(SoundTarget.SFX_VANILLA)) {
+            var sounds = SoundMap.MAP.get(sourceSound.name);
+            if (sounds != null) {
+                for (var sound : sounds) {
+                    this.game.playSound(SoundTarget.SFX_VANILLA, sound.event(), pitch * sound.pitch(), vol * sound.volume());
+                }
+            } else {
+                System.out.println("Missing sound " + sourceSound.name);
             }
-        } else {
-            System.out.println("Missing sound " + sourceSound.name);
         }
 
         return 0;

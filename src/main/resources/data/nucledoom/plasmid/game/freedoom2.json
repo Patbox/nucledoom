@@ -3,7 +3,7 @@
   "name": "Freedoom: Phase 2",
   "description": [],
   "icon": "tnt",
-  "resources": {
-    "freedoom2.wad": "nucledoom:wads/freedoom/freedoom2.wad"
-  }
+  "wad_name": "freedoom2",
+  "wad": "nucledoom:freedoom/freedoom2.wad"
+
 }

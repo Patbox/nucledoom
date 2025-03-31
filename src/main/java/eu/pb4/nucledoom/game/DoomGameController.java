@@ -1,8 +1,10 @@
 package eu.pb4.nucledoom.game;
 
 import eu.pb4.mapcanvas.api.utils.VirtualDisplay;
+import eu.pb4.nucledoom.NucleDoom;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.ConsumableComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
@@ -12,6 +14,7 @@ import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.Items;
+import net.minecraft.item.consume.UseAction;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.*;
 import net.minecraft.network.packet.s2c.play.*;
@@ -21,6 +24,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
@@ -45,6 +49,7 @@ import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
@@ -68,6 +73,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
         this.canvas = canvas;
         this.display = display;
         this.thread = new Thread(this::runThread);
+        this.thread.setDaemon(true);
         canvas.setPlayerInterface(this);
     }
 
@@ -97,6 +103,10 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
 
     public static GameOpenProcedure open(GameOpenContext<DoomConfig> context) {
         DoomConfig config = context.config();
+
+        if (!NucleDoom.WADS.containsKey(config.wadFile())) {
+            throw new GameOpenException(Text.literal("Missing wad file! " + config.wadFile()));
+        }
 
         RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
                 .setDimensionType(DimensionTypes.OVERWORLD_CAVES)
@@ -166,10 +176,10 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
 
     @Override
     public void onDestroy(GameCloseReason reason) {
-        //noinspection removal
         this.canvas.destroy();
         this.display.destroy();
         this.display.getCanvas().destroy();
+        this.thread.interrupt();
     }
 
     @Override
@@ -196,8 +206,8 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
                 this.canvas.pressE();
             }
             return EventResult.DENY;
-        } else if (packet instanceof PlayerInteractBlockC2SPacket blockC2SPacket) {
-            this.canvas.pressE();
+        } else if (packet instanceof PlayerInteractItemC2SPacket blockC2SPacket) {
+            this.canvas.pressMouseRight(true);
             return EventResult.DENY;
         }  else if (packet instanceof PlayerMoveC2SPacket.LookAndOnGround playerMoveC2SPacket) {
             this.canvas.updateMousePosition(playerMoveC2SPacket.getYaw(0), playerMoveC2SPacket.getPitch(0));
@@ -208,6 +218,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
                 case SWAP_ITEM_WITH_OFFHAND -> this.canvas.pressF();
                 case START_DESTROY_BLOCK -> this.canvas.pressMouseLeft(true);
                 case ABORT_DESTROY_BLOCK -> this.canvas.pressMouseLeft(false);
+                case RELEASE_USE_ITEM -> this.canvas.pressMouseRight(false);
             }
             return EventResult.DENY;
         } else if (packet instanceof PlayerLoadedC2SPacket) {
@@ -231,7 +242,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
         }
 
         for (var player : this.gameSpace.getPlayers()) {
-            if (player.getCameraEntity() != this.cameraEntity && this.cameraEntity.age > 2) {
+            if (player.getCameraEntity() != this.cameraEntity) {
                 player.setCameraEntity(this.cameraEntity);
             }
         }
@@ -246,30 +257,23 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
     }
 
     private void runThread() {
-        try {
-            this.canvas.start();
-        } catch (Throwable e) {
-            if (!e.getMessage().equals("Closed!")) {
-                e.printStackTrace();
-            }
-        }
+        this.canvas.start();
     }
 
     // /game open {type:"consolebox:console_box", game:"consolebox:cart"}
     @Override
     public JoinAcceptorResult onAcceptPlayers(JoinAcceptor acceptor) {
-        Vec3d spawnPos = this.canvas.getSpawnPos();
+        Vec3d spawnPos = this.canvas.getSpawnPos().add(0, -EntityType.PLAYER.getHeight() + 0.2, 0);
 
         if (acceptor.intent().canPlay()) {
-            return acceptor.teleport(this.world, spawnPos).thenRunForEach(player -> {
+            return acceptor.teleport(this.world, spawnPos, this.canvas.getSpawnAngle(), 0).thenRunForEach(player -> {
                 this.player = player;
-                this.spawnMount(spawnPos.add(0, 10, 0), player);
+                this.spawnMount(spawnPos.add(0, 0, 1), player);
                 this.initializePlayer(player, GameMode.SURVIVAL);
             });
         }
 
-        Vec3d pos = spawnPos;
-        return acceptor.teleport(this.world, pos).thenRunForEach(player -> {
+        return acceptor.teleport(this.world, spawnPos, this.canvas.getSpawnAngle(), 0).thenRunForEach(player -> {
             this.initializePlayer(player, GameMode.SPECTATOR);
         });
     }
@@ -302,8 +306,8 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
     private void spawnMount(Vec3d playerPos, ServerPlayerEntity player) {
         var mount = EntityType.MULE.create(this.world, SpawnReason.JOCKEY);
         mount.calculateDimensions();
-        double y = playerPos.getY() - 1.25f;
-        mount.setPos(playerPos.getX(), y, playerPos.getZ() + 2);
+        double y = playerPos.getY() - 2.25f;
+        mount.setPos(playerPos.getX(), y, playerPos.getZ());
         mount.setYaw(this.canvas.getSpawnAngle());
 
         mount.setAiDisabled(true);
@@ -322,7 +326,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
 
         this.world.spawnEntity(mount);
         player.startRiding(mount, true);
-
+        player.sendMessage(Text.empty(), true);
     }
 
     private void initializePlayer(ServerPlayerEntity player, GameMode gameMode) {
@@ -336,12 +340,14 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
             var stack = Items.STICK.getDefaultStack();
             stack.set(DataComponentTypes.ITEM_MODEL, Identifier.of("air"));
             stack.set(DataComponentTypes.ITEM_NAME, Text.empty());
+            stack.set(DataComponentTypes.CONSUMABLE, new ConsumableComponent(Float.MAX_VALUE, UseAction.NONE, RegistryEntry.of(SoundEvents.INTENTIONALLY_EMPTY), false, List.of()));
             player.getInventory().main.set(i, stack);
         }
         player.getAbilities().creativeMode = false;
         player.networkHandler.sendPacket(new PlayerAbilitiesS2CPacket(player.getAbilities()));
         player.setYaw(this.canvas.getSpawnAngle());
         player.setPitch(Float.MIN_VALUE);
+        player.sendMessage(Text.empty(), true);
     }
 
     private StatusEffectInstance createInfiniteStatusEffect(RegistryEntry<StatusEffect> statusEffect) {
@@ -358,5 +364,10 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
                 pitch,
                 new Random().nextLong()
         ));
+    }
+
+    @Override
+    public void close() {
+        this.gameSpace.close(GameCloseReason.FINISHED);
     }
 }

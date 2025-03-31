@@ -1,13 +1,10 @@
 package eu.pb4.nucledoom.game;
 
-import doom.ConfigManager;
 import eu.pb4.mapcanvas.api.core.*;
 import eu.pb4.mapcanvas.api.font.DefaultFonts;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
-import eu.pb4.mapcanvas.api.utils.ViewUtils;
 import eu.pb4.nucledoom.ExtraFonts;
 import eu.pb4.nucledoom.NucleDoom;
-import eu.pb4.nucledoom.game.doom.DoomGame;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.item.FilledMapItem;
 import net.minecraft.server.MinecraftServer;
@@ -21,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,6 +74,7 @@ public class GameCanvas {
 
     private long previousFrameTime = -1;
     private DoomGame game = null;
+    private JarGameClassLoader classLoader = null;
 
     public GameCanvas(DoomConfig config, String title, MinecraftServer server) {
         this.config = config;
@@ -138,20 +137,23 @@ public class GameCanvas {
     }
 
     private void drawError(Throwable e) {
-        var width = DefaultFonts.VANILLA.getTextWidth("ERROR!", 16);
+        var width = DefaultFonts.UNIFONT.getTextWidth("ERROR!", 16);
 
         CanvasUtils.fill(this.canvas, (screenWidth - width) / 2 - 5 + drawOffsetX, 11 + drawOffsetY,
                 (screenWidth - width) / 2 + width + 5 + drawOffsetX, 16 * 2 + 5 + drawOffsetY, CanvasColor.BLUE_HIGH);
         //CanvasUtils.fill(this.canvas, 0, 0, SCREEN_HEIGHT, SCREEN_WIDTH, CanvasColor.BLUE_HIGH);
-        DefaultFonts.VANILLA.drawText(this.canvas, "ERROR!", (screenWidth - width) / 2 + 1 + drawOffsetX, 17 + drawOffsetY, 16, CanvasColor.BLACK_LOW);
-        DefaultFonts.VANILLA.drawText(this.canvas, "ERROR!", (screenWidth - width) / 2 + drawOffsetX, 16 + drawOffsetY, 16, CanvasColor.RED_HIGH);
+        DefaultFonts.UNIFONT.drawText(this.canvas, "ERROR!", (screenWidth - width) / 2 + 1 + drawOffsetX, 17 + drawOffsetY, 16, CanvasColor.BLACK_LOW);
+        DefaultFonts.UNIFONT.drawText(this.canvas, "ERROR!", (screenWidth - width) / 2 + drawOffsetX, 16 + drawOffsetY, 16, CanvasColor.RED_HIGH);
 
         String message1;
         String message2;
 
-
         message1 = "Runtime error!";
         message2 = e.toString();
+
+        if (e instanceof GameClosed gameClosed) {
+            message1 = "Game closed with status " + gameClosed.status();
+        }
 
 
         List<String> message2Split = new ArrayList<>();
@@ -179,12 +181,16 @@ public class GameCanvas {
         for (int i = 0; i < message2Split.size(); i++) {
             DefaultFonts.VANILLA.drawText(this.canvas, message2Split.get(i), 5 + drawOffsetX, 64 + 10 + 10 * i + drawOffsetY, 8, CanvasColor.WHITE_HIGH);
         }
+
+        this.canvas.sendUpdates();
     }
 
     public void start() {
         synchronized (this) {
             try {
-                this.game = new DoomGame(this, this.server.getResourceManager(), this.scale);
+                var open = DoomGame.create(this, this.server.getResourceManager(), this.scale);
+                this.game = open.game();
+                this.classLoader = open.loader();
             } catch (Throwable e) {
                 this.error = e;
                 this.drawError(e);
@@ -196,8 +202,11 @@ public class GameCanvas {
         try {
             this.game.startGameLoop();
         } catch (Throwable e) {
-            if (e.getMessage().equals("Closed!")) {
+            if (e instanceof GameClosed gameClosed && gameClosed.status() == 0) {
                 this.game.clear();
+                this.server.execute(() -> {
+                    this.playerInterface.close();
+                });
                 return;
             }
 
@@ -244,8 +253,8 @@ public class GameCanvas {
         this.mouseY = y;
     }
 
-    public void pressMouseRight() {
-
+    public void pressMouseRight(boolean b) {
+        this.pressE();
     }
 
     public void selectSlot(int selectedSlot) {
@@ -268,7 +277,7 @@ public class GameCanvas {
             CanvasUtils.draw(this.canvas, this.canvas.getWidth() / 2 - width / 2, this.canvas.getHeight() / 2 - height / 2, width, height,
                     background);
         }
-        var text = String.format("%s - FPS: %.2f", this.title, (1000f / (frame - previousFrameTime)));
+        var text = String.format("%s - %s", this.title, (1000f / (frame - previousFrameTime)));
         DefaultFonts.UNIFONT.drawText(this.canvas, text, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
 
         CanvasUtils.draw(this.canvas, drawOffsetX, drawOffsetY, canvasImage);
@@ -303,14 +312,24 @@ public class GameCanvas {
 
     public void destroy() {
         if (this.game != null) {
-            this.game.clear();
+            try {
+                this.game.clear();
+            } catch (Throwable e) {
+                // Ignore
+            }
+        }
+        if (this.classLoader != null) {
+            try {
+                this.classLoader.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
     public void tick() {
         if (this.game != null) {
             this.game.tick();
-
         }
     }
 
@@ -320,7 +339,7 @@ public class GameCanvas {
         }
     }
 
-    public void playSound(SoundEvent soundEvent, float pitch, float volume) {
+    public void playSound(SoundTarget target, SoundEvent soundEvent, float pitch, float volume) {
         this.playerInterface.playSound(soundEvent, pitch, volume);
     }
 
@@ -332,6 +351,10 @@ public class GameCanvas {
         return this.server;
     }
 
+    public boolean supportsSoundTargets(SoundTarget target) {
+        return target.isSupported(false, false);
+    }
+
 
     public interface PlayerInterface {
         PlayerInterface NO_OP = new PlayerInterface() {
@@ -339,8 +362,15 @@ public class GameCanvas {
             public void playSound(SoundEvent soundEvent, float pitch, float volume) {
 
             }
+
+            @Override
+            public void close() {
+
+            }
         };
 
         void playSound(SoundEvent soundEvent, float pitch, float volume);
+
+        void close();
     }
 }

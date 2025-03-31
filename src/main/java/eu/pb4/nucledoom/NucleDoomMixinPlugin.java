@@ -1,23 +1,13 @@
 package eu.pb4.nucledoom;
 
-import eu.pb4.nucledoom.game.DoomConfig;
-import eu.pb4.nucledoom.game.DoomGameController;
-import eu.pb4.nucledoom.game.doom.SoundMap;
-import net.fabricmc.api.ModInitializer;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.util.Identifier;
 import org.objectweb.asm.tree.ClassNode;
-import org.spongepowered.asm.mixin.MixinEnvironment;
-import org.spongepowered.asm.mixin.extensibility.IMixinConfig;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
-import org.spongepowered.asm.mixin.extensibility.IMixinConfigSource;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
-import xyz.nucleoid.plasmid.api.game.GameType;
 
 import java.util.List;
 import java.util.Set;
 
-public class NucleDoomHeadlessFix implements IMixinConfigPlugin  {
+public class NucleDoomMixinPlugin implements IMixinConfigPlugin  {
 	static  {
 		System.setProperty("java.awt.headless", "true");
 	}

@@ -1,10 +1,8 @@
 plugins {
 	id "fabric-loom" version "1.9.2"
-	id "maven-publish"
 }
 
-archivesBaseName = project.archives_base_name
-version = project.mod_version
+archivesBaseName = 'doomwrapper'
 group = project.maven_group
 
 repositories {
@@ -28,15 +26,15 @@ dependencies {
 	// Main
 	minecraft("com.mojang:minecraft:${project.minecraft_version}")
 	mappings("net.fabricmc:yarn:${project.yarn_mappings}:v2")
-	modImplementation("net.fabricmc:fabric-loader:${project.loader_version}")
+	modCompileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
 
 	// Fabric API
-	modImplementation("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}")
+	compileOnly("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}")
 
-	// Plasmid
-	modImplementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
+	compileOnly "net.raphimc:NoteBlockLib:3.0.1-SNAPSHOT"
+	compileOnly files('../jars/mochadoom.jar')
+	compileOnly project(':')
 
-	implementation include("net.raphimc:NoteBlockLib:3.0.1-SNAPSHOT")
 }
 
 processResources {
@@ -59,10 +57,4 @@ tasks.withType(JavaCompile) {
 
 jar {
 	from "LICENSE"
-	from("jars/mochadoom.jar") {
-		into("jars/")
-	}
-	from("doomwrapper/build/libs/doomwrapper.jar") {
-		into("jars/")
-	}
 }

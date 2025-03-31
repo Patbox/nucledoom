@@ -1,34 +1,29 @@
-package eu.pb4.nucledoom.game.doom;
+package eu.pb4.doomwrapper;
 
-import net.fabricmc.loader.api.FabricLoader;
+import eu.pb4.nucledoom.game.SoundTarget;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
 import net.raphimc.noteblocklib.data.MinecraftDefinitions;
 import net.raphimc.noteblocklib.data.MinecraftInstrument;
 import net.raphimc.noteblocklib.format.midi.MidiIo;
-import net.raphimc.noteblocklib.format.nbs.model.NbsCustomInstrument;
 import net.raphimc.noteblocklib.model.Note;
 import net.raphimc.noteblocklib.model.Song;
 import net.raphimc.noteblocklib.player.SongPlayer;
 import s.IMusic;
 import s.MusReader;
 
-import javax.sound.midi.*;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 
 public class MinecraftMusicDriver implements IMusic {
-    private final DoomGame game;
+    private final DoomGameImpl game;
     private float volume;
 
     private Player player;
 
-    public MinecraftMusicDriver(DoomGame game) {
+    public MinecraftMusicDriver(DoomGameImpl game) {
 
         this.game = game;
     }
@@ -91,24 +86,16 @@ public class MinecraftMusicDriver implements IMusic {
     @Override
     public int RegisterSong(byte[] data) {
         try {
+            Song song;
             if (data[0] == 'M' && data[1] == 'U' && data[2] == 'S') {
                 var sequence1 = MusReader.getSequence(new ByteArrayInputStream(data));
-                var sequence = new Sequence(0, 14 * 30 / 2, 1);
-                var track1  = sequence1.getTracks()[0];
-                var track2  = sequence.getTracks()[0];
-                for (int i = 0; i < track1.size(); i++) {
-                    track2.add(track1.get(i));
-                }
-
-                var tmp = new ByteArrayOutputStream();
-                MidiSystem.write(sequence, 0, tmp);
-                data = tmp.toByteArray();
+                song = MidiIo.parseSong(sequence1, "");
+            } else {
+                song = MidiIo.readSong(new ByteArrayInputStream(data), "");
             }
-
-            var song = MidiIo.readSong(new ByteArrayInputStream(data), "");
-            song.getNotes().forEach(MinecraftDefinitions::instrumentShiftNote);
             this.player = new Player(song);
         } catch (Exception e) {
+            e.printStackTrace();
             return -1;
         }
         // In good old C style, we return 0 upon success?
@@ -123,15 +110,33 @@ public class MinecraftMusicDriver implements IMusic {
 
         @Override
         protected void playNotes(List<Note> list) {
+            var tmpNote = new Note();
             for (var note : list) {
-                SoundEvent event = SoundEvents.INTENTIONALLY_EMPTY;
-                if (note.getInstrument() instanceof MinecraftInstrument minecraftInstrument) {
-                    event = Registries.SOUND_EVENT.get(Identifier.of(minecraftInstrument.mcSoundName()));
-                } else if (note.getInstrument() instanceof NbsCustomInstrument customInstrument) {
-                    event = new SoundEvent(Identifier.of(customInstrument.getName()), Optional.empty());
+                if (note.getInstrument() instanceof MinecraftInstrument instrument) {
+                    if (note.isOutsideMinecraftOctaveRange()) {
+                        if (game.supportsSoundTarget(SoundTarget.MUSIC_VANILLA)) {
+                            tmpNote.setInstrument(instrument);
+                            tmpNote.setMidiKey(note.getMidiKey());
+                            tmpNote.setVolume(note.getVolume());
+                            MinecraftDefinitions.instrumentShiftNote(tmpNote);
+                            MinecraftDefinitions.clampNoteKey(tmpNote);
+                            game.playSound(SoundTarget.MUSIC_VANILLA,
+                                    Registries.SOUND_EVENT.get(Identifier.of(((MinecraftInstrument) tmpNote.getInstrument()).mcSoundName())),
+                                    tmpNote.getPitch(), volume * tmpNote.getVolume());
+                        }
+                        if (game.supportsSoundTarget(SoundTarget.MUSIC_EXT)) {
+                            tmpNote.setInstrument(instrument);
+                            tmpNote.setMidiKey(note.getMidiKey());
+                            tmpNote.setVolume(note.getVolume());
+                            var suffix = MinecraftDefinitions.applyExtendedNotesResourcePack(tmpNote);
+                            game.playSound(SoundTarget.MUSIC_EXT,
+                                    new SoundEvent(Identifier.of(instrument.mcSoundName() + "_" + suffix), Optional.empty()),
+                                    tmpNote.getPitch(), volume * tmpNote.getVolume());
+                        }
+                    } else {
+                        game.playSound(SoundTarget.MUSIC_ANY, Registries.SOUND_EVENT.get(Identifier.of(instrument.mcSoundName())), note.getPitch(), volume * note.getVolume());
+                    }
                 }
-
-                game.playSound(event, note.getPitch(), note.getVolume() * volume);
             }
         }
 

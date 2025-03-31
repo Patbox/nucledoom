@@ -1,17 +1,19 @@
-package eu.pb4.nucledoom.game.doom;
+package eu.pb4.doomwrapper;
 
 import data.sounds;
-import net.minecraft.registry.Registries;
+import eu.pb4.nucledoom.NucleDoom;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public interface SoundMap {
     static Map<String, List<Sound>> MAP = new HashMap<>();
+    static Map<String, SoundEvent> DOOM_MAP = new HashMap<>();
 
     
     static void put(String name, SoundEvent... event) {
@@ -24,6 +26,9 @@ public interface SoundMap {
 
     static void updateSoundMap() {
         MAP.clear();
+        for (var sfx : sounds.S_sfx) {
+            DOOM_MAP.put(sfx.name, new SoundEvent(Identifier.of(NucleDoom.MOD_ID, "sfx." + sfx.name), Optional.empty()));
+        }
         put("punch", SoundEvents.ENTITY_PLAYER_ATTACK_STRONG);
         put("pistol", SoundEvents.ITEM_CROSSBOW_SHOOT);
         put("shotgn", new Sound(SoundEvents.ENTITY_DRAGON_FIREBALL_EXPLODE, 1, 0.8f));
