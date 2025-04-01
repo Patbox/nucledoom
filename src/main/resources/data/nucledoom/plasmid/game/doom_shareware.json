@@ -2,7 +2,25 @@
   "type": "nucledoom:doom",
   "name": "Doom (Shareware)",
   "description": [],
-  "icon": "tnt",
+  "icon": {
+    "id": "player_head",
+    "components": {
+      "profile": {
+        "id": [
+          1157112320,
+          1983727113,
+          -1780549920,
+          1831171045
+        ],
+        "properties": [
+          {
+            "name": "textures",
+            "value": "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNmVkYWRmMGIxODE0NzEwMWI3YjczZWQzZGI2MDU1N2ZkN2VjZGQ0NDA1YzdlOGZlYjMxZThkMTQ3M2VmNjM4NiJ9fX0="
+          }
+        ]
+      }
+    }
+  },
   "wad_name": "doom1",
   "wad": "nucledoom:doomshareware/doom1.wad"
 }

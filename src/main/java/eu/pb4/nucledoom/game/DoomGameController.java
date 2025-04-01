@@ -188,6 +188,12 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
             return EventResult.DENY;
         }
 
+        if (packet instanceof PlayerLoadedC2SPacket) {
+            player.networkHandler.sendPacket(new SetCameraEntityS2CPacket(this.cameraEntity));
+            player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(8));
+            return EventResult.PASS;
+        }
+
         if (this.player != player) {
             return EventResult.PASS;
         }
@@ -199,14 +205,14 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
             if (updateSelectedSlotC2SPacket.getSelectedSlot() != 8) {
                 this.canvas.selectSlot(updateSelectedSlotC2SPacket.getSelectedSlot());
             }
-            player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(9));
+            player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(8));
             return EventResult.DENY;
         } else if (packet instanceof ClientCommandC2SPacket clientCommandC2SPacket) {
             if (clientCommandC2SPacket.getMode() == ClientCommandC2SPacket.Mode.OPEN_INVENTORY) {
                 this.canvas.pressE();
             }
             return EventResult.DENY;
-        } else if (packet instanceof PlayerInteractItemC2SPacket blockC2SPacket) {
+        } else if (packet instanceof PlayerInteractBlockC2SPacket blockC2SPacket) {
             this.canvas.pressMouseRight(true);
             return EventResult.DENY;
         }  else if (packet instanceof PlayerMoveC2SPacket.LookAndOnGround playerMoveC2SPacket) {
@@ -218,11 +224,8 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
                 case SWAP_ITEM_WITH_OFFHAND -> this.canvas.pressF();
                 case START_DESTROY_BLOCK -> this.canvas.pressMouseLeft(true);
                 case ABORT_DESTROY_BLOCK -> this.canvas.pressMouseLeft(false);
-                case RELEASE_USE_ITEM -> this.canvas.pressMouseRight(false);
+                //case RELEASE_USE_ITEM -> this.canvas.pressMouseRight(false);
             }
-            return EventResult.DENY;
-        } else if (packet instanceof PlayerLoadedC2SPacket) {
-            player.networkHandler.sendPacket(new SetCameraEntityS2CPacket(this.cameraEntity));
             return EventResult.DENY;
         }
 
@@ -242,7 +245,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
         }
 
         for (var player : this.gameSpace.getPlayers()) {
-            if (player.getCameraEntity() != this.cameraEntity) {
+            if (player.getCameraEntity() != this.cameraEntity && this.cameraEntity.age > 8) {
                 player.setCameraEntity(this.cameraEntity);
             }
         }
@@ -306,7 +309,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
     private void spawnMount(Vec3d playerPos, ServerPlayerEntity player) {
         var mount = EntityType.MULE.create(this.world, SpawnReason.JOCKEY);
         mount.calculateDimensions();
-        double y = playerPos.getY() - 2.25f;
+        double y = playerPos.getY() - 0.1f;
         mount.setPos(playerPos.getX(), y, playerPos.getZ());
         mount.setYaw(this.canvas.getSpawnAngle());
 

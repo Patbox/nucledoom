@@ -4,8 +4,10 @@ import eu.pb4.nucledoom.game.SoundTarget;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Identifier;
+import net.raphimc.noteblocklib.NoteBlockLib;
 import net.raphimc.noteblocklib.data.MinecraftDefinitions;
 import net.raphimc.noteblocklib.data.MinecraftInstrument;
+import net.raphimc.noteblocklib.format.SongFormat;
 import net.raphimc.noteblocklib.format.midi.MidiIo;
 import net.raphimc.noteblocklib.model.Note;
 import net.raphimc.noteblocklib.model.Song;
@@ -14,6 +16,8 @@ import s.IMusic;
 import s.MusReader;
 
 import java.io.ByteArrayInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -93,6 +97,13 @@ public class MinecraftMusicDriver implements IMusic {
             } else {
                 song = MidiIo.readSong(new ByteArrayInputStream(data), "");
             }
+
+            /*Files.deleteIfExists(Path.of("doom.nbs"));
+            var song2 = NoteBlockLib.convertSong(song, SongFormat.NBS);
+            song2.getNotes().forEach(MinecraftDefinitions::instrumentShiftNote);
+            song2.getNotes().forEach(MinecraftDefinitions::clampNoteKey);
+            NoteBlockLib.writeSong(song2, Path.of("doom.nbs"));*/
+
             this.player = new Player(song);
         } catch (Exception e) {
             e.printStackTrace();

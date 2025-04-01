@@ -6,7 +6,6 @@ import doom.DoomMain;
 import doom.event_t;
 import eu.pb4.nucledoom.game.GameClosed;
 import mochadoom.SystemHandler;
-import org.jetbrains.annotations.NotNull;
 import s.DummyMusic;
 import s.DummySFX;
 import s.IMusic;
@@ -28,7 +27,7 @@ import static utils.C2JUtils.checkForExtension;
 import static w.InputStreamSugar.ZIP_FILE;
 import static w.InputStreamSugar.getZipEntryStream;
 
-public record NucleSystemHandler() implements SystemHandler.Impl {
+public record NucleSystemHandler(DoomGameImpl game) implements SystemHandler.Impl {
     @Override
     public boolean allowSaves() {
         return false;
@@ -36,8 +35,7 @@ public record NucleSystemHandler() implements SystemHandler.Impl {
 
     @Override
     public int guessResourceType(String uri) {
-        var game = DoomGameImpl.GAME.get();
-        if (game == null || uri == null || uri.isEmpty()) {
+        if (uri == null || uri.isEmpty()) {
             return InputStreamSugar.BAD_URI;
         }
 
@@ -58,8 +56,7 @@ public record NucleSystemHandler() implements SystemHandler.Impl {
 
     @Override
     public boolean testReadAccess(String uri) {
-        var game = DoomGameImpl.GAME.get();
-        if (game == null || uri == null || uri.isEmpty()) {
+        if (uri == null || uri.isEmpty()) {
             return false;
         }
 
@@ -78,42 +75,27 @@ public record NucleSystemHandler() implements SystemHandler.Impl {
 
     @Override
     public CVarManager getCvars() {
-        var game = DoomGameImpl.GAME.get();
-        return game != null ? game.getCvarManager() : new CVarManager(List.of());
+        return game.getCvarManager();
     }
 
     @Override
     public ConfigManager getConfig() {
-        var game = DoomGameImpl.GAME.get();
-        return game != null ? game.getConfigManager() : new ConfigManager();
+        return game.getConfigManager();
     }
 
     @Override
     public void updateFrame() {
-        var game = DoomGameImpl.GAME.get();
-        if (game != null) {
-            game.drawFrame();
-        }
+        game.drawFrame();
     }
 
     @Override
     public IMusic chooseMusicModule(CVarManager cVarManager) {
-        var game = DoomGameImpl.GAME.get();
-        if (game != null) {
-            return new MinecraftMusicDriver(game);
-        }
-
-        return new DummyMusic();
+        return new MinecraftMusicDriver(game);
     }
 
     @Override
     public ISoundDriver chooseSoundModule(DoomMain<?, ?> doomMain, CVarManager cVarManager) {
-        var game = DoomGameImpl.GAME.get();
-        if (game != null) {
-            return new MinecraftSoundDriver(doomMain, game);
-        }
-
-        return new DummySFX();
+        return new MinecraftSoundDriver(doomMain, game);
     }
 
     @Override
@@ -138,11 +120,6 @@ public record NucleSystemHandler() implements SystemHandler.Impl {
 
     @Override
     public InputStream getDirectInputStream(String resource) {
-        var game = DoomGameImpl.GAME.get();
-        if (game == null) {
-            return null;
-        }
-
         var out = game.getResourceStream(resource);
 
         return out != null ? out.get() : null;
@@ -218,12 +195,7 @@ public record NucleSystemHandler() implements SystemHandler.Impl {
 
     @Override
     public boolean fileExists(String s) {
-        var game = DoomGameImpl.GAME.get();
-        if (game == null) {
-            return false;
-        }
-
-        return game.getResourceStream(s) != null;
+        return this.game.getResourceStream(s) != null;
     }
 
     @Override

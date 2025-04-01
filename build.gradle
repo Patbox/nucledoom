@@ -35,8 +35,10 @@ dependencies {
 
 	// Plasmid
 	modImplementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
+	//modImplementation("eu.pb4:polymer-resource-pack-extras:0.11.8+1.21.4")
 
 	implementation include("net.raphimc:NoteBlockLib:3.0.1-SNAPSHOT")
+	//implementation include('org.gagravarr:vorbis-java-core:0.8')
 }
 
 processResources {

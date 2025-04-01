@@ -4,12 +4,14 @@ import eu.pb4.nucledoom.NucleDoom;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.PlayerInput;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 public interface DoomGame {
-    static Open create(GameCanvas canvas, ResourceManager resourceManager, int scale) throws Throwable {
+    static Open create(@Nullable GameCanvas canvas, DoomConfig config, ResourceManager resourceManager, int scale) throws Throwable {
         List<Path> path = null;
         if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
             var base = FabricLoader.getInstance().getGameDir();
@@ -24,8 +26,8 @@ public interface DoomGame {
         var loader = new JarGameClassLoader(path);
         return new Open(
                 (DoomGame) loader.findClass("eu.pb4.doomwrapper.DoomGameImpl")
-                        .getConstructor(GameCanvas.class, ResourceManager.class, int.class)
-                        .newInstance(canvas, resourceManager, scale),
+                        .getConstructor(GameCanvas.class, DoomConfig.class, ResourceManager.class, int.class)
+                        .newInstance(canvas, config, resourceManager, scale),
                 loader);
     }
 
@@ -48,6 +50,8 @@ public interface DoomGame {
     void pressF();
 
     void tick();
+
+    void extractAudio(BiConsumer<String, byte[]> consumer);
 
     record Open(DoomGame game, JarGameClassLoader loader) {
     }

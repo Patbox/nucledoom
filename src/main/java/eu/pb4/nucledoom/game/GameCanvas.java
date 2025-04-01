@@ -118,18 +118,20 @@ public class GameCanvas {
 
 
         var text = """
-                Move with WSAD
-                Shift is spring
-                Mouse to look around
-                Left click to shoot
-                Right click to activate
-                1-7 to switch weapon
-                F for pause/menu
-                SPACE to accept
-                Q in menu to go back
+                  ## Controls
+                  - Move with WSAD
+                  - Run with SHIFT
+                  - Mouse to look around
+                  - Left click to shoot
+                  - Right click to use
+                  - 1-7 to select weapon
+                  - F for pause/menu
+                  - SPACE to select
+                  - E to accept
+                  - Q to go back
                 """;
 
-        ExtraFonts.OPEN_ZOO_4x8.drawText(this.canvas, text, drawOffsetX - 88, drawOffsetY + 70, 8, CanvasColor.BLACK_HIGH);
+        ExtraFonts.OPEN_ZOO_4x8.drawText(this.canvas, text, drawOffsetX - 91, drawOffsetY + 70, 8, CanvasColor.BLACK_HIGH);
     }
 
     public void setPlayerInterface(PlayerInterface playerInterface) {
@@ -188,7 +190,7 @@ public class GameCanvas {
     public void start() {
         synchronized (this) {
             try {
-                var open = DoomGame.create(this, this.server.getResourceManager(), this.scale);
+                var open = DoomGame.create(this, this.config, this.server.getResourceManager(), this.scale);
                 this.game = open.game();
                 this.classLoader = open.loader();
             } catch (Throwable e) {
@@ -254,7 +256,9 @@ public class GameCanvas {
     }
 
     public void pressMouseRight(boolean b) {
-        this.pressE();
+        if (b) {
+            this.pressE();
+        }
     }
 
     public void selectSlot(int selectedSlot) {
@@ -277,7 +281,7 @@ public class GameCanvas {
             CanvasUtils.draw(this.canvas, this.canvas.getWidth() / 2 - width / 2, this.canvas.getHeight() / 2 - height / 2, width, height,
                     background);
         }
-        var text = String.format("%s - %s", this.title, (1000f / (frame - previousFrameTime)));
+        var text = String.format("%s - %.2f FPS", this.title, (1000f / (frame - previousFrameTime)));
         DefaultFonts.UNIFONT.drawText(this.canvas, text, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
 
         CanvasUtils.draw(this.canvas, drawOffsetX, drawOffsetY, canvasImage);
@@ -340,7 +344,9 @@ public class GameCanvas {
     }
 
     public void playSound(SoundTarget target, SoundEvent soundEvent, float pitch, float volume) {
-        this.playerInterface.playSound(soundEvent, pitch, volume);
+        if (target.isSupported(false, false)) {
+            this.playerInterface.playSound(soundEvent, pitch, volume);
+        }
     }
 
     public DoomConfig getConfig() {

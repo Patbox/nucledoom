@@ -3,13 +3,13 @@
 	"id": "nucledoom",
 	"version": "${version}",
 	"name": "NucleDoom",
-	"description": "A game console emulator for Minecraft.",
+	"description": "A Doom engine that runs inside Minecraft",
 	"authors": [
 		"Patbox"
 	],
 	"contact": {
-		"homepage": "https://github.com/haykam821/Console-Box#readme",
-		"issues": "https://github.com/haykam821/Console-Box/issues"
+		"homepage": "https://pb4.eu",
+		"issues": "https://github.com/Patbox/NucleDoom/issues"
 	},
 	"entrypoints": {
 		"main": [
@@ -19,7 +19,7 @@
 	"mixins": [
       "nucledoom.mixin.json"
 	],
-	"license": "MIT",
+	"license": "LGPLv3",
 	"depends": {
 		"fabricloader": ">=0.4.0",
 		"java": ">=21",

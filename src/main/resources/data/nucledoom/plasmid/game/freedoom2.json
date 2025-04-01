@@ -2,7 +2,25 @@
   "type": "nucledoom:doom",
   "name": "Freedoom: Phase 2",
   "description": [],
-  "icon": "tnt",
+  "icon": {
+    "id": "player_head",
+    "components": {
+      "profile": {
+        "id": [
+          1960584831,
+          1628590051,
+          -1798702350,
+          -685401072
+        ],
+        "properties": [
+          {
+            "name": "textures",
+            "value": "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjk0MTc2OWE0MThhNjgxMTMwMmVkZDJiOTgxMGI5MTUwYjA1MDFkZWQ0OGFjZDljY2JlYmViODI5Y2VjNjZkOSJ9fX0="
+          }
+        ]
+      }
+    }
+  },
   "wad_name": "freedoom2",
   "wad": "nucledoom:freedoom/freedoom2.wad"
 

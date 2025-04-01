@@ -1,5 +1,6 @@
 package eu.pb4.doomwrapper;
 
+import data.sounds;
 import doom.*;
 import eu.pb4.nucledoom.NucleDoom;
 import eu.pb4.nucledoom.game.*;
@@ -11,6 +12,8 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.PlayerInput;
 import org.jetbrains.annotations.Nullable;
+import s.AbstractDoomAudio;
+import s.AbstractSoundDriver;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.VolatileImage;
@@ -19,14 +22,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 public class DoomGameImpl implements DoomGame {
-    public static final ThreadLocal<DoomGameImpl> GAME = new ThreadLocal<>();
-
     private final DoomMain<?, ?> doom;
     private final CVarManager cvar;
     private final DoomConfig config;
+    @Nullable
     private final GameCanvas canvas;
     private final ConfigManager configManager;
     private final ResourceManager resource;
@@ -46,16 +49,15 @@ public class DoomGameImpl implements DoomGame {
     private boolean resentMouse;
 
 
-    public DoomGameImpl(GameCanvas gameCanvas, ResourceManager resourceManager, int scale) throws IOException {
+    public DoomGameImpl(@Nullable GameCanvas gameCanvas, DoomConfig config, ResourceManager resourceManager, int scale) throws IOException {
         SoundMap.updateSoundMap();
 
         this.canvas = gameCanvas;
         this.resource = resourceManager;
-        this.config = this.canvas.getConfig();
+        this.config = config;
         this.wadName = this.config.wadName().toLowerCase(Locale.ROOT) + ".wad";
         this.wadData = NucleDoom.WADS.get(this.config.wadFile());
-        SystemHandler.instance = new NucleSystemHandler();
-        GAME.set(this);
+        SystemHandler.instance = new NucleSystemHandler(this);
         var cvars = new ArrayList<String>();
         cvars.addAll(List.of("-multiply", String.valueOf(scale), "-novolatileimage", "-iwad", this.wadName));
         cvars.addAll(config.cvars());
@@ -72,7 +74,6 @@ public class DoomGameImpl implements DoomGame {
 
     @Override
     public void clear() {
-        GAME.remove();
         ((DoomSystem) this.doom.doomSystem).close();
         this.close = true;
     }
@@ -90,6 +91,10 @@ public class DoomGameImpl implements DoomGame {
             this.doom.soundDriver.ShutdownSound();
             this.doom.music.ShutdownMusic();
             throw new GameClosed(0);
+        }
+
+        if (this.canvas == null) {
+            return;
         }
 
         var image = this.doom.graphicSystem.getScreenImage();
@@ -218,12 +223,27 @@ public class DoomGameImpl implements DoomGame {
         }
     }
 
+    @Override
+    public void extractAudio(BiConsumer<String, byte[]> consumer) {
+        new MinecraftSoundDriver(this.doom, this) {
+            void callInit() {
+                initSound16();
+            };
+        }.callInit();
+
+        for (var sound : sounds.S_sfx) {
+            consumer.accept(sound.name, sound.data);
+        }
+    }
+
     public void playSound(SoundTarget target, SoundEvent soundVanilla, float pitch, float volume) {
-        this.canvas.playSound(target, soundVanilla, pitch, volume);
+        if (this.canvas != null) {
+            this.canvas.playSound(target, soundVanilla, pitch, volume);
+        }
     }
 
     public boolean supportsSoundTarget(SoundTarget target) {
-        return this.canvas.supportsSoundTargets(target);
+        return this.canvas != null && this.canvas.supportsSoundTargets(target);
     }
 
 
@@ -259,17 +279,21 @@ public class DoomGameImpl implements DoomGame {
         }
 
         if (path.equals("mochadoom.cfg")) {
+            System.out.println("found mocha");
             return () -> {
                 try {
-                    return Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get().findPath("data/nucledoom/mochadoom.cfg").get());
+                    return Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get()
+                            .findPath((FabricLoader.getInstance().isDevelopmentEnvironment() ? "" : "/") + "data/nucledoom/mochadoom.cfg").get());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             };
         } else if (path.equals("default.cfg")) {
+            System.out.println("found default");
             return () -> {
                 try {
-                    return Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get().findPath("data/nucledoom/default.cfg").get());
+                    return Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get()
+                            .findPath((FabricLoader.getInstance().isDevelopmentEnvironment() ? "" : "/") + "data/nucledoom/default.cfg").get());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

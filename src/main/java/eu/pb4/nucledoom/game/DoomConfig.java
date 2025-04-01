@@ -8,7 +8,8 @@ import net.minecraft.util.Identifier;
 import java.util.List;
 import java.util.Map;
 
-public record DoomConfig(Identifier wadFile, String wadName, List<String> cvars, Map<String, Identifier> resourceMap) {
+public record DoomConfig(Identifier wadFile, String wadName,
+                         List<String> cvars, Map<String, Identifier> resourceMap) {
 
     public static final MapCodec<DoomConfig> CODEC = RecordCodecBuilder.mapCodec(instance -> {
         return instance.group(
