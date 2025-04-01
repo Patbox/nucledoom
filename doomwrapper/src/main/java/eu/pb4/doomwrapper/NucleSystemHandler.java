@@ -209,4 +209,19 @@ public record NucleSystemHandler(DoomGameImpl game) implements SystemHandler.Imp
     public BufferedWriter getFileBufferedWriter(String s, Charset charset, OpenOption[] openOptions) throws IOException {
         return new BufferedWriter(Writer.nullWriter());
     }
+
+    @Override
+    public void mainLoopStart() {
+        this.game.mainLoopStart();
+    }
+
+    @Override
+    public void mainLoopPostTic() {
+
+    }
+
+    @Override
+    public void mainLoopEnd() {
+
+    }
 }

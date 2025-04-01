@@ -12,8 +12,6 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.PlayerInput;
 import org.jetbrains.annotations.Nullable;
-import s.AbstractDoomAudio;
-import s.AbstractSoundDriver;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.VolatileImage;
@@ -59,7 +57,7 @@ public class DoomGameImpl implements DoomGame {
         this.wadData = NucleDoom.WADS.get(this.config.wadFile());
         SystemHandler.instance = new NucleSystemHandler(this);
         var cvars = new ArrayList<String>();
-        cvars.addAll(List.of("-multiply", String.valueOf(scale), "-novolatileimage", "-iwad", this.wadName));
+        cvars.addAll(List.of("-multiply", String.valueOf(scale), "-novolatileimage", "-millis", "-iwad", this.wadName));
         cvars.addAll(config.cvars());
         this.cvar = new CVarManager(cvars);
         this.configManager = new ConfigManager();
@@ -108,12 +106,6 @@ public class DoomGameImpl implements DoomGame {
         }
 
         this.canvas.drawFrame(bufferedImage);
-        if (this.resentMouse) {
-            this.doom.PostEvent(this.mouseEvent);
-            this.resentMouse = false;
-        } else {
-            this.mouseEvent.x = 0;
-        }
     }
 
     @Override
@@ -136,7 +128,7 @@ public class DoomGameImpl implements DoomGame {
             this.doom.PostEvent(new event_t.keyevent_t(input.sneak() ? evtype_t.ev_keydown : evtype_t.ev_keyup, Signals.ScanCode.SC_LSHIFT));
         }
         if (this.input.sprint() != input.sprint()) {
-            this.doom.PostEvent(new event_t.keyevent_t(input.sprint() ? evtype_t.ev_keydown : evtype_t.ev_keyup, Signals.ScanCode.SC_LCTRL));
+            this.doom.PostEvent(new event_t.keyevent_t(input.sprint() ? evtype_t.ev_keydown : evtype_t.ev_keyup, Signals.ScanCode.SC_TAB));
         }
 
         if (this.input.jump() != input.jump()) {
@@ -147,22 +139,16 @@ public class DoomGameImpl implements DoomGame {
     }
 
     @Override
-    public void moveMouse(float v) {
+    public void updateMouse(float v, boolean mouseLeft) {
         double d = 0.6000000238418579 + 0.20000000298023224;
         double e = d * d * d;
         double f = e * 8.0;
 
         this.mouseEvent.x = (int) (v * 4 / 0.15 / f) ;
-        this.doom.PostEvent(this.mouseEvent);
-        this.resentMouse = true;
-    }
-
-    @Override
-    public void pressMouseLeft(boolean down) {
-        if (down) {
+        if (mouseLeft) {
             this.mouseEvent.buttons |= event_t.MOUSE_LEFT;
         } else {
-            this.mouseEvent.buttons ^= event_t.MOUSE_LEFT;
+            this.mouseEvent.buttons &= 0b110;
         }
         this.doom.PostEvent(this.mouseEvent);
     }
@@ -208,7 +194,7 @@ public class DoomGameImpl implements DoomGame {
 
         if (--pressQ == 0) {
             this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keyup, Signals.ScanCode.SC_N ));
-            this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keyup, Signals.ScanCode.SC_BACKSPACE ));
+            this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keyup, Signals.ScanCode.SC_BACKSPACE));
         }
 
         for (int i = 0; i < 9; i++) {
@@ -279,7 +265,6 @@ public class DoomGameImpl implements DoomGame {
         }
 
         if (path.equals("mochadoom.cfg")) {
-            System.out.println("found mocha");
             return () -> {
                 try {
                     return Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get()
@@ -289,7 +274,6 @@ public class DoomGameImpl implements DoomGame {
                 }
             };
         } else if (path.equals("default.cfg")) {
-            System.out.println("found default");
             return () -> {
                 try {
                     return Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get()
@@ -314,5 +298,9 @@ public class DoomGameImpl implements DoomGame {
         }
 
         return null;
+    }
+
+    public void mainLoopStart() {
+        this.doom.PostEvent(this.mouseEvent);
     }
 }

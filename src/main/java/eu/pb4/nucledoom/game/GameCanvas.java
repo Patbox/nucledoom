@@ -34,8 +34,12 @@ public class GameCanvas {
     private final String title;
 
     private Throwable error;
-    private float mouseX;
-    private float mouseY;
+
+    private float mouseX = 0;
+    private float mouseY = 0;
+    private boolean mouseLeft;
+    private float previousMouseX;
+    private float previousMouseY;
 
     private static CanvasImage readImage(String path) {
         CanvasImage temp;
@@ -246,11 +250,6 @@ public class GameCanvas {
     }
 
     public void updateMousePosition(float x, float y) {
-        synchronized (this) {
-            if (this.game != null) {
-                this.game.moveMouse(MathHelper.subtractAngles(this.mouseX, x));
-            }
-        }
         this.mouseX = x;
         this.mouseY = y;
     }
@@ -273,6 +272,10 @@ public class GameCanvas {
         var canvasImage = CanvasImage.from(screenImage);
         var frame = System.currentTimeMillis();
 
+        if (frame - previousFrameTime < 3) {
+            //System.out.println("AAA");
+        }
+
         if (DEFAULT_OVERLAY_RESET != null) {
             var background = DEFAULT_OVERLAY_RESET;
             var width = background.getWidth() * BACKGROUND_SCALE * scale;
@@ -281,7 +284,7 @@ public class GameCanvas {
             CanvasUtils.draw(this.canvas, this.canvas.getWidth() / 2 - width / 2, this.canvas.getHeight() / 2 - height / 2, width, height,
                     background);
         }
-        var text = String.format("%s - %.2f FPS", this.title, (1000f / (frame - previousFrameTime)));
+        var text = String.format("%s - %s MS", this.title, frame - previousFrameTime);
         DefaultFonts.UNIFONT.drawText(this.canvas, text, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
 
         CanvasUtils.draw(this.canvas, drawOffsetX, drawOffsetY, canvasImage);
@@ -338,9 +341,7 @@ public class GameCanvas {
     }
 
     public void pressMouseLeft(boolean down) {
-        if (this.game != null) {
-            this.game.pressMouseLeft(down);
-        }
+        this.mouseLeft = down;
     }
 
     public void playSound(SoundTarget target, SoundEvent soundEvent, float pitch, float volume) {
@@ -359,6 +360,18 @@ public class GameCanvas {
 
     public boolean supportsSoundTargets(SoundTarget target) {
         return target.isSupported(false, false);
+    }
+
+    public void clientTick() {
+        synchronized (this) {
+            if (this.game != null) {
+                this.game.updateMouse(MathHelper.subtractAngles(this.previousMouseX, this.mouseX), this.mouseLeft);
+            }
+        }
+        this.previousMouseX = this.mouseX;
+        this.previousMouseY = this.mouseY;
+        this.mouseX = 0;
+        this.mouseY = 0;
     }
 
 

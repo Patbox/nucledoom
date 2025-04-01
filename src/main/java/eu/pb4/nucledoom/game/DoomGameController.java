@@ -73,6 +73,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
         this.canvas = canvas;
         this.display = display;
         this.thread = new Thread(this::runThread);
+        this.thread.setName("nucledoom_" + gameSpace.getMetadata().userId().toShortTranslationKey());
         this.thread.setDaemon(true);
         canvas.setPlayerInterface(this);
     }
@@ -215,7 +216,10 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
         } else if (packet instanceof PlayerInteractBlockC2SPacket blockC2SPacket) {
             this.canvas.pressMouseRight(true);
             return EventResult.DENY;
-        }  else if (packet instanceof PlayerMoveC2SPacket.LookAndOnGround playerMoveC2SPacket) {
+        } else if (packet instanceof ClientTickEndC2SPacket clientTickEndC2SPacket) {
+            this.canvas.clientTick();
+            return EventResult.PASS;
+        } else if (packet instanceof PlayerMoveC2SPacket.LookAndOnGround playerMoveC2SPacket) {
             this.canvas.updateMousePosition(playerMoveC2SPacket.getYaw(0), playerMoveC2SPacket.getPitch(0));
             return EventResult.DENY;
         } else if (packet instanceof PlayerActionC2SPacket playerActionC2SPacket) {

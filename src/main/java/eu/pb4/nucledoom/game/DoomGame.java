@@ -6,6 +6,7 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.PlayerInput;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -13,14 +14,21 @@ import java.util.function.BiConsumer;
 public interface DoomGame {
     static Open create(@Nullable GameCanvas canvas, DoomConfig config, ResourceManager resourceManager, int scale) throws Throwable {
         List<Path> path = null;
+        var base = FabricLoader.getInstance().getGameDir();
         if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            var base = FabricLoader.getInstance().getGameDir();
             path = List.of(base.resolve("../doomwrapper/build/devlibs/doomwrapper-dev.jar"),
                     base.resolve("../jars/mochadoom.jar"));
         } else {
             var container = FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get();
-            path = List.of(container.findPath("jars/doomwrapper.jar").get(),
-                    container.findPath("jars/mochadoom.jar").get());
+            var wrapper = container.findPath("jars/doomwrapper.jar").get();
+            var doom = container.findPath("jars/mochadoom.jar").get();
+            if (Files.exists(base.resolve("nucledoom_override/doomwrapper.jar"))) {
+                wrapper = base.resolve("nucledoom_override/doomwrapper.jar");
+            }
+            if (Files.exists(base.resolve("nucledoom_override/mochadoom.jar"))) {
+                doom = base.resolve("nucledoom_override/mochadoom.jar");
+            }
+            path = List.of(wrapper, doom);
         }
 
         var loader = new JarGameClassLoader(path);
@@ -37,9 +45,7 @@ public interface DoomGame {
 
     void updateKeyboard(PlayerInput input);
 
-    void moveMouse(float v);
-
-    void pressMouseLeft(boolean down);
+    void updateMouse(float xDelta, boolean mouseLeft);
 
     void selectSlot(int selectedSlot);
 
