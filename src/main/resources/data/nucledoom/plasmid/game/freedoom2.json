@@ -4,6 +4,7 @@
   "description": [],
   "icon": {
     "id": "player_head",
+    "count": 2,
     "components": {
       "profile": {
         "id": [

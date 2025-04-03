@@ -32,6 +32,7 @@ dependencies {
 	compileOnly("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}")
 
 	compileOnly "net.raphimc:NoteBlockLib:3.0.1-SNAPSHOT"
+	compileOnly "eu.pb4:map-canvas-api:0.5.0+1.21.3"
 	compileOnly files('../jars/mochadoom.jar')
 	compileOnly project(':')
 

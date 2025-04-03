@@ -2,6 +2,7 @@ package eu.pb4.nucledoom.game;
 
 import eu.pb4.mapcanvas.api.utils.VirtualDisplay;
 import eu.pb4.nucledoom.NucleDoom;
+import eu.pb4.nucledoom.PlayerSaveData;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ConsumableComponent;
@@ -19,6 +20,7 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.*;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -27,11 +29,12 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
-import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.dimension.DimensionTypes;
+import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
 import xyz.nucleoid.plasmid.api.game.*;
@@ -48,9 +51,7 @@ import xyz.nucleoid.stimuli.event.player.PlayerC2SPacketEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Random;
 
 public class DoomGameController implements GameCanvas.PlayerInterface, GamePlayerEvents.Add, GameActivityEvents.Destroy, GameActivityEvents.Tick, GameActivityEvents.Enable, GamePlayerEvents.Remove, GamePlayerEvents.Accept, PlayerDamageEvent, PlayerDeathEvent, PlayerC2SPacketEvent {
@@ -107,6 +108,12 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
 
         if (!NucleDoom.WADS.containsKey(config.wadFile())) {
             throw new GameOpenException(Text.literal("Missing wad file! " + config.wadFile()));
+        }
+
+        for (var iwad : config.pwads()) {
+            if (!NucleDoom.WADS.containsKey(iwad)) {
+                throw new GameOpenException(Text.literal("Missing wad file! " + config.wadFile()));
+            }
         }
 
         RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
@@ -376,5 +383,12 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
     @Override
     public void close() {
         this.gameSpace.close(GameCloseReason.FINISHED);
+    }
+
+    @Override
+    public @Nullable PlayerSaveData getSaveData() {
+        var config = this.gameSpace.getMetadata().sourceConfig();
+        var saveId = this.config.saveName().or(() ->config.getKey().map(RegistryKey::getValue)).orElse(NucleDoom.identifier("unknown"));
+        return this.config.saves() ? new PlayerSaveData(this.gameSpace.getServer().getSavePath(WorldSavePath.ROOT).resolve("nucledoom_playerdata").resolve(this.player.getUuidAsString()).resolve(saveId.toUnderscoreSeparatedString())) : null;
     }
 }

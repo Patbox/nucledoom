@@ -4,8 +4,10 @@ import doom.CVarManager;
 import doom.ConfigManager;
 import doom.DoomMain;
 import doom.event_t;
+import eu.pb4.nucledoom.PlayerSaveData;
 import eu.pb4.nucledoom.game.GameClosed;
 import mochadoom.SystemHandler;
+import org.jetbrains.annotations.Nullable;
 import s.DummyMusic;
 import s.DummySFX;
 import s.IMusic;
@@ -18,6 +20,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.ColorModel;
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -27,10 +30,10 @@ import static utils.C2JUtils.checkForExtension;
 import static w.InputStreamSugar.ZIP_FILE;
 import static w.InputStreamSugar.getZipEntryStream;
 
-public record NucleSystemHandler(DoomGameImpl game) implements SystemHandler.Impl {
+public record NucleSystemHandler(DoomGameImpl game, @Nullable PlayerSaveData saveData) implements SystemHandler.Impl {
     @Override
     public boolean allowSaves() {
-        return false;
+        return this.saveData != null;
     }
 
     @Override
@@ -208,6 +211,31 @@ public record NucleSystemHandler(DoomGameImpl game) implements SystemHandler.Imp
     @Override
     public BufferedWriter getFileBufferedWriter(String s, Charset charset, OpenOption[] openOptions) throws IOException {
         return new BufferedWriter(Writer.nullWriter());
+    }
+
+    @Override
+    public OutputStream getSaveDataOutputStream(String name) throws IOException {
+        if (this.saveData == null) {
+            throw new FileNotFoundException("Saves disabled");
+        }
+
+        Files.createDirectories(this.saveData.savePath());
+        var path = this.saveData.savePath().resolve(name);
+
+        return Files.newOutputStream(path);
+    }
+
+    @Override
+    public InputStream getSaveDataInputStream(String name) throws IOException {
+        if (this.saveData == null) {
+            throw new FileNotFoundException("Saves disabled");
+        }
+        var path = this.saveData.savePath().resolve(name);
+        if (!Files.exists(path)) {
+            throw new FileNotFoundException("File not found!");
+        }
+
+        return Files.newInputStream(path);
     }
 
     @Override

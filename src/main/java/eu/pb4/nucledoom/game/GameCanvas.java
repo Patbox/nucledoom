@@ -5,6 +5,7 @@ import eu.pb4.mapcanvas.api.font.DefaultFonts;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
 import eu.pb4.nucledoom.ExtraFonts;
 import eu.pb4.nucledoom.NucleDoom;
+import eu.pb4.nucledoom.PlayerSaveData;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.item.FilledMapItem;
 import net.minecraft.server.MinecraftServer;
@@ -13,6 +14,7 @@ import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,7 +137,7 @@ public class GameCanvas {
                   - Q to go back
                 """;
 
-        ExtraFonts.OPEN_ZOO_4x8.drawText(this.canvas, text, drawOffsetX - 91, drawOffsetY + 70, 8, CanvasColor.BLACK_HIGH);
+        ExtraFonts.OPEN_ZOO_4x8.drawText(this.canvas, text, drawOffsetX - 91 * scale, drawOffsetY + 70 * scale, 8 * scale, CanvasColor.BLACK_HIGH);
     }
 
     public void setPlayerInterface(PlayerInterface playerInterface) {
@@ -194,7 +196,7 @@ public class GameCanvas {
     public void start() {
         synchronized (this) {
             try {
-                var open = DoomGame.create(this, this.config, this.server.getResourceManager(), this.scale);
+                var open = DoomGame.create(this, this.playerInterface.getSaveData(), this.config, this.server.getResourceManager(), this.scale);
                 this.game = open.game();
                 this.classLoader = open.loader();
             } catch (Throwable e) {
@@ -268,13 +270,8 @@ public class GameCanvas {
         }
     }
 
-    public void drawFrame(BufferedImage screenImage) {
-        var canvasImage = CanvasImage.from(screenImage);
+    public void drawFrame(DrawableCanvas canvas) {
         var frame = System.currentTimeMillis();
-
-        if (frame - previousFrameTime < 3) {
-            //System.out.println("AAA");
-        }
 
         if (DEFAULT_OVERLAY_RESET != null) {
             var background = DEFAULT_OVERLAY_RESET;
@@ -285,9 +282,9 @@ public class GameCanvas {
                     background);
         }
         var text = String.format("%s - %s MS", this.title, frame - previousFrameTime);
-        DefaultFonts.UNIFONT.drawText(this.canvas, text, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
+        DefaultFonts.UNIFONT.drawText(this.canvas, text, drawOffsetX + 2 * scale, drawOffsetY - (16 + 4) * scale, 16 * scale, CanvasColor.WHITE_HIGH);
 
-        CanvasUtils.draw(this.canvas, drawOffsetX, drawOffsetY, canvasImage);
+        CanvasUtils.draw(this.canvas, drawOffsetX, drawOffsetY, canvas);
 
         previousFrameTime = frame;
         this.canvas.sendUpdates();
@@ -386,10 +383,18 @@ public class GameCanvas {
             public void close() {
 
             }
+
+            @Override
+            public PlayerSaveData getSaveData() {
+                return null;
+            }
         };
 
         void playSound(SoundEvent soundEvent, float pitch, float volume);
 
         void close();
+
+        @Nullable
+        PlayerSaveData getSaveData();
     }
 }

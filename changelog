@@ -1,0 +1,6 @@
+NucleDoom 1.1.0:
+- Changed CTRL button to toggle the map.
+- Enabled saving and loading.
+- Added supports for defining pwads (requires custom configs).
+- Changed default gamma value to 2, making things bit more visible.
+- Improved performance!

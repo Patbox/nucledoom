@@ -1,6 +1,7 @@
 package eu.pb4.nucledoom.game;
 
 import eu.pb4.nucledoom.NucleDoom;
+import eu.pb4.nucledoom.PlayerSaveData;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.PlayerInput;
@@ -12,7 +13,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public interface DoomGame {
-    static Open create(@Nullable GameCanvas canvas, DoomConfig config, ResourceManager resourceManager, int scale) throws Throwable {
+    static Open create(@Nullable GameCanvas canvas, @Nullable PlayerSaveData saveData, DoomConfig config, ResourceManager resourceManager, int scale) throws Throwable {
         List<Path> path = null;
         var base = FabricLoader.getInstance().getGameDir();
         if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
@@ -34,8 +35,8 @@ public interface DoomGame {
         var loader = new JarGameClassLoader(path);
         return new Open(
                 (DoomGame) loader.findClass("eu.pb4.doomwrapper.DoomGameImpl")
-                        .getConstructor(GameCanvas.class, DoomConfig.class, ResourceManager.class, int.class)
-                        .newInstance(canvas, config, resourceManager, scale),
+                        .getConstructor(GameCanvas.class, PlayerSaveData.class, DoomConfig.class, ResourceManager.class, int.class)
+                        .newInstance(canvas, saveData, config, resourceManager, scale),
                 loader);
     }
 

@@ -1,4 +1,3 @@
 {
-	"gameType.consolebox.console_box": "Console Box",
-	"text.consolebox.nonexistent_console_game": "The console game %s does not exist!"
+	"gameType.nucledoom.doom": "NucleDoom"
 }
