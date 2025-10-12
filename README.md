@@ -12,7 +12,6 @@ Supports sounds*!
 
 ## Active servers
 - `playdoom.pb4.eu` - Main server / Europe
-- `playdoom.modrinth.gg` - US server
 
 ## Controls
 - Move with WSAD

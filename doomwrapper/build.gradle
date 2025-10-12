@@ -1,5 +1,5 @@
 plugins {
-	id "fabric-loom" version "1.9.2"
+	id "fabric-loom" version "1.10.+"
 }
 
 archivesBaseName = 'doomwrapper'
@@ -31,7 +31,7 @@ dependencies {
 	// Fabric API
 	compileOnly("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}")
 
-	compileOnly "net.raphimc:NoteBlockLib:3.0.1-SNAPSHOT"
+	compileOnly "net.raphimc:NoteBlockLib:3.1.0"
 	compileOnly "eu.pb4:map-canvas-api:0.5.0+1.21.3"
 	compileOnly files('../jars/mochadoom.jar')
 	compileOnly project(':')

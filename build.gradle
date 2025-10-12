@@ -1,5 +1,5 @@
 plugins {
-	id "fabric-loom" version "1.9.2"
+	id "fabric-loom" version "1.10.+"
 	id "maven-publish"
 }
 
@@ -37,7 +37,7 @@ dependencies {
 	modImplementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
 	//modImplementation("eu.pb4:polymer-resource-pack-extras:0.11.8+1.21.4")
 
-	implementation include("net.raphimc:NoteBlockLib:3.0.1-SNAPSHOT")
+	implementation include("net.raphimc:NoteBlockLib:3.1.0")
 	//implementation include('org.gagravarr:vorbis-java-core:0.8')
 }
 

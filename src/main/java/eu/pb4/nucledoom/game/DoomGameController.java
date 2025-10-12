@@ -11,6 +11,7 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.decoration.DisplayEntity;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -45,6 +46,7 @@ import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
 import xyz.nucleoid.plasmid.api.game.player.JoinAcceptor;
 import xyz.nucleoid.plasmid.api.game.player.JoinAcceptorResult;
+import xyz.nucleoid.plasmid.api.game.player.PlayerSet;
 import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
 import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.player.PlayerC2SPacketEvent;
@@ -54,29 +56,77 @@ import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 import java.util.List;
 import java.util.Random;
 
-public class DoomGameController implements GameCanvas.PlayerInterface, GamePlayerEvents.Add, GameActivityEvents.Destroy, GameActivityEvents.Tick, GameActivityEvents.Enable, GamePlayerEvents.Remove, GamePlayerEvents.Accept, PlayerDamageEvent, PlayerDeathEvent, PlayerC2SPacketEvent {
+public class DoomGameController implements GameHandler.PlayerInterface, GamePlayerEvents.Add, GameActivityEvents.Destroy, GameActivityEvents.Tick, GameActivityEvents.Enable, GamePlayerEvents.Remove, GamePlayerEvents.Accept, PlayerDamageEvent, PlayerDeathEvent, PlayerC2SPacketEvent {
     private final Thread thread;
     private final GameSpace gameSpace;
     private final ServerWorld world;
     private final DoomConfig config;
-    private final GameCanvas canvas;
-    private final VirtualDisplay display;
+    private final GameHandler handler;
+    private VirtualDisplay display;
     private final Entity cameraEntity;
+    private final DisplayEntity.ItemDisplayEntity leftAudio;
+    private final DisplayEntity.ItemDisplayEntity rightAudio;
     private ServerPlayerEntity player;
     private boolean hasStarted = false;
 
-    public DoomGameController(GameSpace gameSpace, ServerWorld world, DoomConfig config, GameCanvas canvas, Entity cameraEntity, VirtualDisplay display) {
+    public DoomGameController(String title, GameSpace gameSpace, ServerWorld world, DoomConfig config) {
         this.gameSpace = gameSpace;
         this.world = world;
         this.config = config;
 
-        this.cameraEntity = cameraEntity;
-        this.canvas = canvas;
-        this.display = display;
+        this.handler = new GameHandler(config, title, gameSpace.getServer());
+
+        cameraEntity = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
+        assert cameraEntity != null;
+        cameraEntity.setInvisible(true);
+        world.spawnEntity(cameraEntity);
+
+        this.leftAudio = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
+        assert leftAudio != null;
+        leftAudio.setInvisible(true);
+        world.spawnEntity(leftAudio);
+
+        this.rightAudio = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
+        assert rightAudio != null;
+        rightAudio.setInvisible(true);
+        world.spawnEntity(rightAudio);
+
+        this.updateSetup();
+
         this.thread = new Thread(this::runThread);
         this.thread.setName("nucledoom_" + gameSpace.getMetadata().userId().toShortTranslationKey());
         this.thread.setDaemon(true);
-        canvas.setPlayerInterface(this);
+        handler.setPlayerInterface(this);
+    }
+
+
+    public void updateSetup() {
+        if (this.handler.getCanvas() != null && this.hasStarted) {
+            world.setBlockState(this.cameraEntity.getBlockPos(), Blocks.AIR.getDefaultState());
+        }
+
+        this.handler.updateCanvas(false, 1);
+
+        var players = PlayerSet.EMPTY;
+        if (this.display != null) {
+            players = this.gameSpace.getPlayers();
+            this.display.destroy();
+        }
+
+        this.display = VirtualDisplay.builder(this.handler.getCanvas().getCanvas(), this.handler.getCanvas().getDisplayPos(), Direction.SOUTH)
+                .invisible()
+                .build();
+
+        players.forEach(this.display::addPlayer);
+        players.forEach(this.display.getCanvas()::addPlayer);
+
+        cameraEntity.setPosition(handler.getSpawnPos());
+        cameraEntity.setYaw(handler.getSpawnAngle());
+        leftAudio.setPosition(handler.getSpawnPos().add(2, 0, 0));
+        rightAudio.setPosition(handler.getSpawnPos().add(-2, 0, 0));
+        if (this.hasStarted) {
+            world.setBlockState(this.cameraEntity.getBlockPos(), Blocks.BARRIER.getDefaultState());
+        }
     }
 
     public static void setRules(GameActivity activity) {
@@ -124,35 +174,9 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
 
         return context.openWithWorld(worldConfig, (activity, world) -> {
             //noinspection unchecked
-            GameCanvas canvas = new GameCanvas(config,
+            DoomGameController phase = new DoomGameController(
                     GameConfig.name((RegistryEntry<GameConfig<?>>) (Object) context.gameConfig()).getString(),
-                    activity.getGameSpace().getServer());
-
-            VirtualDisplay display = VirtualDisplay.builder(canvas.getCanvas(), canvas.getDisplayPos(), Direction.SOUTH)
-                    .invisible()
-                    .build();
-
-
-            var camera = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
-            assert camera != null;
-            camera.setInvisible(true);
-            camera.setPosition(canvas.getSpawnPos());
-            camera.setYaw(canvas.getSpawnAngle());
-            world.spawnEntity(camera);
-
-            var leftAudio = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
-            assert leftAudio != null;
-            leftAudio.setInvisible(true);
-            leftAudio.setPosition(canvas.getSpawnPos().add(2, 0, 0));
-            world.spawnEntity(leftAudio);
-
-            var rightAudio = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
-            assert rightAudio != null;
-            rightAudio.setInvisible(true);
-            rightAudio.setPosition(canvas.getSpawnPos().add(-2, 0, 0));
-            world.spawnEntity(rightAudio);
-
-            DoomGameController phase = new DoomGameController(activity.getGameSpace(), world, config, canvas, camera, display);
+                    activity.getGameSpace(), world, config);
             //audioController.setOutput(camera, leftAudio, rightAudio, activity.getGameSpace().getPlayers()::sendPacket);
             DoomGameController.setRules(activity);
 
@@ -175,8 +199,10 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
     // Listeners
     @Override
     public void onAddPlayer(ServerPlayerEntity player) {
-        this.display.addPlayer(player);
-        this.display.getCanvas().addPlayer(player);
+        if (this.display != null) {
+            this.display.addPlayer(player);
+            this.display.getCanvas().addPlayer(player);
+        }
         player.networkHandler.sendPacket(new SetCameraEntityS2CPacket(this.cameraEntity));
 
         player.networkHandler.sendPacket(new PlayerAbilitiesS2CPacket(player.getAbilities()));
@@ -184,7 +210,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
 
     @Override
     public void onDestroy(GameCloseReason reason) {
-        this.canvas.destroy();
+        this.handler.destroy();
         this.display.destroy();
         this.display.getCanvas().destroy();
         this.thread.interrupt();
@@ -207,34 +233,38 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
         }
 
         if (packet instanceof PlayerInputC2SPacket playerInputC2SPacket) {
-            this.canvas.updateKeyboard(playerInputC2SPacket.input());
+            this.handler.updateKeyboard(playerInputC2SPacket.input());
             return EventResult.DENY;
         } else if (packet instanceof UpdateSelectedSlotC2SPacket updateSelectedSlotC2SPacket) {
+            if (updateSelectedSlotC2SPacket.getSelectedSlot() == 7) {
+                //this.updateSetup();
+            }
+
             if (updateSelectedSlotC2SPacket.getSelectedSlot() != 8) {
-                this.canvas.selectSlot(updateSelectedSlotC2SPacket.getSelectedSlot());
+                this.handler.selectSlot(updateSelectedSlotC2SPacket.getSelectedSlot());
             }
             player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(8));
             return EventResult.DENY;
         } else if (packet instanceof ClientCommandC2SPacket clientCommandC2SPacket) {
             if (clientCommandC2SPacket.getMode() == ClientCommandC2SPacket.Mode.OPEN_INVENTORY) {
-                this.canvas.pressE();
+                this.handler.pressE();
             }
             return EventResult.DENY;
         } else if (packet instanceof PlayerInteractBlockC2SPacket blockC2SPacket) {
-            this.canvas.pressMouseRight(true);
+            this.handler.pressMouseRight(true);
             return EventResult.DENY;
         } else if (packet instanceof ClientTickEndC2SPacket clientTickEndC2SPacket) {
-            this.canvas.clientTick();
+            this.handler.clientTick();
             return EventResult.PASS;
         } else if (packet instanceof PlayerMoveC2SPacket.LookAndOnGround playerMoveC2SPacket) {
-            this.canvas.updateMousePosition(playerMoveC2SPacket.getYaw(0), playerMoveC2SPacket.getPitch(0));
+            this.handler.updateMousePosition(playerMoveC2SPacket.getYaw(0), playerMoveC2SPacket.getPitch(0));
             return EventResult.DENY;
         } else if (packet instanceof PlayerActionC2SPacket playerActionC2SPacket) {
             switch (playerActionC2SPacket.getAction()) {
-                case DROP_ITEM, DROP_ALL_ITEMS -> this.canvas.pressQ();
-                case SWAP_ITEM_WITH_OFFHAND -> this.canvas.pressF();
-                case START_DESTROY_BLOCK -> this.canvas.pressMouseLeft(true);
-                case ABORT_DESTROY_BLOCK -> this.canvas.pressMouseLeft(false);
+                case DROP_ITEM, DROP_ALL_ITEMS -> this.handler.pressQ();
+                case SWAP_ITEM_WITH_OFFHAND -> this.handler.pressF();
+                case START_DESTROY_BLOCK -> this.handler.pressMouseLeft(true);
+                case ABORT_DESTROY_BLOCK -> this.handler.pressMouseLeft(false);
                 //case RELEASE_USE_ITEM -> this.canvas.pressMouseRight(false);
             }
             return EventResult.DENY;
@@ -260,7 +290,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
                 player.setCameraEntity(this.cameraEntity);
             }
         }
-        this.canvas.tick();
+        this.handler.tick();
         this.player.networkHandler.sendPacket(new StopSoundS2CPacket(null, SoundCategory.BLOCKS));
     }
 
@@ -271,23 +301,23 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
     }
 
     private void runThread() {
-        this.canvas.start();
+        this.handler.start();
     }
 
     // /game open {type:"consolebox:console_box", game:"consolebox:cart"}
     @Override
     public JoinAcceptorResult onAcceptPlayers(JoinAcceptor acceptor) {
-        Vec3d spawnPos = this.canvas.getSpawnPos().add(0, -EntityType.PLAYER.getHeight() + 0.2, 0);
+        Vec3d spawnPos = this.handler.getSpawnPos().add(0, -EntityType.PLAYER.getHeight() + 0.2, 0);
 
         if (acceptor.intent().canPlay()) {
-            return acceptor.teleport(this.world, spawnPos, this.canvas.getSpawnAngle(), 0).thenRunForEach(player -> {
+            return acceptor.teleport(this.world, spawnPos, this.handler.getSpawnAngle(), 0).thenRunForEach(player -> {
                 this.player = player;
                 this.spawnMount(spawnPos.add(0, 0, 1), player);
                 this.initializePlayer(player, GameMode.SURVIVAL);
             });
         }
 
-        return acceptor.teleport(this.world, spawnPos, this.canvas.getSpawnAngle(), 0).thenRunForEach(player -> {
+        return acceptor.teleport(this.world, spawnPos, this.handler.getSpawnAngle(), 0).thenRunForEach(player -> {
             this.initializePlayer(player, GameMode.SPECTATOR);
         });
     }
@@ -322,7 +352,7 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
         mount.calculateDimensions();
         double y = playerPos.getY() - 0.1f;
         mount.setPos(playerPos.getX(), y, playerPos.getZ());
-        mount.setYaw(this.canvas.getSpawnAngle());
+        mount.setYaw(this.handler.getSpawnAngle());
 
         mount.setAiDisabled(true);
         mount.setNoGravity(true);
@@ -355,11 +385,11 @@ public class DoomGameController implements GameCanvas.PlayerInterface, GamePlaye
             stack.set(DataComponentTypes.ITEM_MODEL, Identifier.of("air"));
             stack.set(DataComponentTypes.ITEM_NAME, Text.empty());
             stack.set(DataComponentTypes.CONSUMABLE, new ConsumableComponent(Float.MAX_VALUE, UseAction.NONE, RegistryEntry.of(SoundEvents.INTENTIONALLY_EMPTY), false, List.of()));
-            player.getInventory().main.set(i, stack);
+            player.getInventory().setStack(i, stack);
         }
         player.getAbilities().creativeMode = false;
         player.networkHandler.sendPacket(new PlayerAbilitiesS2CPacket(player.getAbilities()));
-        player.setYaw(this.canvas.getSpawnAngle());
+        player.setYaw(this.handler.getSpawnAngle());
         player.setPitch(Float.MIN_VALUE);
         player.sendMessage(Text.empty(), true);
     }

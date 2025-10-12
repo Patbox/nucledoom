@@ -11,7 +11,6 @@ import eu.pb4.nucledoom.game.*;
 import g.Signals;
 import i.DoomSystem;
 import m.Menu;
-import m.MenuRoutine;
 import mochadoom.SystemHandler;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resource.ResourceManager;
@@ -35,40 +34,37 @@ public class DoomGameImpl implements DoomGame {
     private final CVarManager cvar;
     private final DoomConfig config;
     @Nullable
-    private final GameCanvas canvas;
+    private final GameHandler handler;
     private final ConfigManager configManager;
     private final ResourceManager resource;
     private final Map<String, Supplier<InputStream>> resourceCache = new HashMap<>();
     private final byte[] wadData;
     private final Map<String, byte[]> iwadData = new HashMap<>();
     private final String wadName;
-
     private volatile boolean close = false;
     private PlayerInput input = PlayerInput.DEFAULT;
     private int pressF;
     private int pressE;
     private int pressQ;
 
-    private final FastCanvasImage screen;
-
+    private FastCanvasImage screen;
     private final int[] pressNum = new int[9];
     private final event_t.mouseevent_t mouseEvent = new event_t.mouseevent_t(evtype_t.ev_mouse, 0, 0, 0);
 
 
-    public DoomGameImpl(@Nullable GameCanvas gameCanvas,
+    public DoomGameImpl(@Nullable GameHandler gameHandler,
                         @Nullable PlayerSaveData saveData,
                         DoomConfig config,
-                        ResourceManager resourceManager,
-                        int scale) throws IOException {
+                        ResourceManager resourceManager) throws IOException {
         SoundMap.updateSoundMap();
-        this.canvas = gameCanvas;
+        this.handler  = gameHandler;
         this.resource = resourceManager;
         this.config = config;
         this.wadName = this.config.wadName().toLowerCase(Locale.ROOT) + ".wad";
         this.wadData = NucleDoom.WADS.get(this.config.wadFile());
         SystemHandler.instance = new NucleSystemHandler(this, saveData);
         var cvars = new ArrayList<String>();
-        cvars.addAll(List.of("-multiply", String.valueOf(scale), "-novolatileimage", "-hidediskdrawer", "-iwad", this.wadName));
+        cvars.addAll(List.of("-multiply", String.valueOf(handler != null ? handler.getCanvas().getScale() : 1), "-novolatileimage", "-hidediskdrawer", "-iwad", this.wadName));
         if (!config.pwads().isEmpty()) {
             cvars.add("-file");
             int i = 0;
@@ -105,8 +101,6 @@ public class DoomGameImpl implements DoomGame {
         for (var x : menu.SaveMenu) {
             x.routine = menu.SaveGame;
         }
-
-        this.screen = new FastCanvasImage(this.doom.graphicSystem.getScreenWidth(), this.doom.graphicSystem.getScreenHeight());
     }
 
     @Override
@@ -136,7 +130,7 @@ public class DoomGameImpl implements DoomGame {
             throw new GameClosed(0);
         }
 
-        if (this.canvas == null) {
+        if (this.handler == null) {
             return;
         }
 
@@ -151,18 +145,38 @@ public class DoomGameImpl implements DoomGame {
             DefaultFonts.UNIFONT.drawText(this.screen, "Unsupported renderer", 16, 16, 16, CanvasColor.RED_HIGH);
         }
 
-        int pixels = this.screen.data().length;
-        var screen = this.screen.data();
+
         var buf = bufferedImage.getData().getDataBuffer();
 
         //CustomColorMap.clearMap();
-
         var colorModel = bufferedImage.getColorModel();
-        for (int i = 0; i < pixels; i++) {
-            screen[i] = CanvasUtils.findClosestRawColor(colorModel.getRGB(buf.getElem(i)));
+
+        var trueColor = this.handler.getCanvas().trueRgb();
+        var trueColorScale = this.handler.getCanvas().trueRgb() ? 2 : 1;
+
+        if (this.screen == null || this.screen.width() != this.doom.graphicSystem.getScreenWidth() * trueColorScale) {
+            this.screen = new FastCanvasImage(this.doom.graphicSystem.getScreenWidth() * trueColorScale , this.doom.graphicSystem.getScreenHeight() * trueColorScale);
         }
 
-        this.canvas.drawFrame(this.screen);
+        if (trueColor) {
+            var rgb = new RgbCanvas(this.screen);
+            int width = bufferedImage.getWidth();
+            int height = bufferedImage.getHeight();
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
+                    rgb.setRgb(x, y, colorModel.getRGB(buf.getElem(x + y * width)));
+                }
+            }
+        } else {
+            int pixels = this.screen.data().length;
+            var screen = this.screen.data();
+
+            for (int i = 0; i < pixels; i++) {
+                screen[i] = CanvasUtils.findClosestRawColor(colorModel.getRGB(buf.getElem(i)));
+            }
+        }
+
+        this.handler.getCanvas().drawFrame(this.screen);
     }
 
     @Override
@@ -285,13 +299,13 @@ public class DoomGameImpl implements DoomGame {
     }
 
     public void playSound(SoundTarget target, SoundEvent soundVanilla, float pitch, float volume) {
-        if (this.canvas != null) {
-            this.canvas.playSound(target, soundVanilla, pitch, volume);
+        if (this.handler != null) {
+            this.handler.playSound(target, soundVanilla, pitch, volume);
         }
     }
 
     public boolean supportsSoundTarget(SoundTarget target) {
-        return this.canvas != null && this.canvas.supportsSoundTargets(target);
+        return this.handler != null && this.handler.supportsSoundTargets(target);
     }
 
 

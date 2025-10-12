@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public interface DoomGame {
-    static Open create(@Nullable GameCanvas canvas, @Nullable PlayerSaveData saveData, DoomConfig config, ResourceManager resourceManager, int scale) throws Throwable {
+    static Open create(@Nullable GameHandler handler, @Nullable PlayerSaveData saveData, DoomConfig config, ResourceManager resourceManager) throws Throwable {
         List<Path> path = null;
         var base = FabricLoader.getInstance().getGameDir();
         if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
@@ -35,8 +35,8 @@ public interface DoomGame {
         var loader = new JarGameClassLoader(path);
         return new Open(
                 (DoomGame) loader.findClass("eu.pb4.doomwrapper.DoomGameImpl")
-                        .getConstructor(GameCanvas.class, PlayerSaveData.class, DoomConfig.class, ResourceManager.class, int.class)
-                        .newInstance(canvas, saveData, config, resourceManager, scale),
+                        .getConstructor(GameHandler.class, PlayerSaveData.class, DoomConfig.class, ResourceManager.class)
+                        .newInstance(handler, saveData, config, resourceManager),
                 loader);
     }
 
