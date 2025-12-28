@@ -2,10 +2,10 @@ package eu.pb4.nucledoom.game;
 
 import eu.pb4.nucledoom.PlayerSaveData;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.PlayerInput;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ public class GameHandler {
     }
 
     public void updateCanvas(boolean trueRgb, int scale) {
-        this.canvas = new GameCanvas(title, trueRgb, scale);
+        this.canvas = new GameCanvas(title, trueRgb, scale, this.game != null ? this.game.getControls() : "");
     }
 
     public void setPlayerInterface(PlayerInterface playerInterface) {
@@ -50,12 +50,14 @@ public class GameHandler {
         this.canvas.drawError(e);
     }
 
-    public void start() {
+    public void start(DoomGame.GameOpener opener) {
         synchronized (this) {
             try {
-                var open = DoomGame.create(this, this.playerInterface.getSaveData(), this.config, this.server.getResourceManager());
+                var open = opener.createGame(this, this.playerInterface.getSaveData(), this.config, this.server.getResourceManager());
                 this.game = open.game();
                 this.classLoader = open.loader();
+                this.canvas.setControls(game.getControls());
+                this.canvas.drawBackground();
             } catch (Throwable e) {
                 this.error = e;
                 this.drawError(e);
@@ -82,8 +84,8 @@ public class GameHandler {
         this.game.clear();
     }
 
-    public Vec3d getSpawnPos() {
-        return this.canvas != null ? this.canvas.getSpawnPos() : Vec3d.ZERO ;
+    public Vec3 getSpawnPos() {
+        return this.canvas != null ? this.canvas.getSpawnPos() : Vec3.ZERO ;
     }
 
     public int getSpawnAngle() {
@@ -95,7 +97,7 @@ public class GameHandler {
     }
 
 
-    public void updateKeyboard(PlayerInput input) {
+    public void updateKeyboard(Input input) {
         if (this.game != null) {
             this.game.updateKeyboard(input);
         }
@@ -171,9 +173,9 @@ public class GameHandler {
         this.mouseLeft = down;
     }
 
-    public void playSound(SoundTarget target, SoundEvent soundEvent, float pitch, float volume) {
-        if (target.isSupported(false, false)) {
-            this.playerInterface.playSound(soundEvent, pitch, volume);
+    public void playSound(SoundTarget target, SoundEvent soundEvent, float pitch, float volume, long seed) {
+        if (supportsSoundTargets(target)) {
+            this.playerInterface.playSound(soundEvent, pitch, volume, seed);
         }
     }
 
@@ -192,7 +194,7 @@ public class GameHandler {
     public void clientTick() {
         synchronized (this) {
             if (this.game != null) {
-                this.game.updateMouse(MathHelper.subtractAngles(this.previousMouseX, this.mouseX), this.mouseLeft);
+                this.game.updateMouse(Mth.degreesDifference(this.previousMouseX, this.mouseX), Mth.degreesDifference(this.previousMouseY, this.mouseY), this.mouseLeft);
             }
         }
         this.previousMouseX = this.mouseX;
@@ -201,11 +203,20 @@ public class GameHandler {
         this.mouseY = 0;
     }
 
+    public boolean onChat(String s) {
+        synchronized (this) {
+            if (this.game != null) {
+                return this.game.onChat(s);
+            }
+        }
+        return false;
+    }
+
 
     public interface PlayerInterface {
         PlayerInterface NO_OP = new PlayerInterface() {
             @Override
-            public void playSound(SoundEvent soundEvent, float pitch, float volume) {
+            public void playSound(SoundEvent soundEvent, float pitch, float volume, long seed) {
 
             }
 
@@ -220,7 +231,7 @@ public class GameHandler {
             }
         };
 
-        void playSound(SoundEvent soundEvent, float pitch, float volume);
+        void playSound(SoundEvent soundEvent, float pitch, float volume, long seed);
 
         void close();
 

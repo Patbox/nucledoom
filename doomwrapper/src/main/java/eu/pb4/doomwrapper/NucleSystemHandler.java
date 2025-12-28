@@ -8,8 +8,6 @@ import eu.pb4.nucledoom.PlayerSaveData;
 import eu.pb4.nucledoom.game.GameClosed;
 import mochadoom.SystemHandler;
 import org.jetbrains.annotations.Nullable;
-import s.DummyMusic;
-import s.DummySFX;
 import s.IMusic;
 import s.ISoundDriver;
 import utils.C2JUtils;
@@ -22,7 +20,6 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
-import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 

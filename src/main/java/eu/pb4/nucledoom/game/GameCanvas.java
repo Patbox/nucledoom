@@ -6,9 +6,9 @@ import eu.pb4.mapcanvas.api.utils.CanvasUtils;
 import eu.pb4.nucledoom.ExtraFonts;
 import eu.pb4.nucledoom.NucleDoom;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.item.FilledMapItem;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.MapItem;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +27,7 @@ public class GameCanvas {
     private final String title;
     private final boolean trueRgb;
     private final DrawableCanvas drawCanvas;
+    private String controls;
 
     private static CanvasImage readImage(String path) {
         CanvasImage temp;
@@ -42,7 +43,7 @@ public class GameCanvas {
     }
 
     private static final int RENDER_SCALE = 1;
-    private static final int MAP_SIZE = FilledMapItem.field_30907;
+    private static final int MAP_SIZE = MapItem.IMAGE_WIDTH;
 
     private static  final int DEFAULT_SCREEN_WIDTH = 320;
     private static final int DEFAULT_SCREEN_HEIGHT = 200;
@@ -61,7 +62,7 @@ public class GameCanvas {
 
     private long previousFrameTime = -1;
 
-    public GameCanvas(String title, boolean trueRgb, int scale) {
+    public GameCanvas(String title, boolean trueRgb, int scale, String controls) {
         this.title = title;
         this.trueRgb = trueRgb;
         this.scale = scale;
@@ -75,7 +76,16 @@ public class GameCanvas {
 
         this.canvas = DrawableCanvas.create(sectionWidth * trueRgbScale, sectionHeight * trueRgbScale);
         this.drawCanvas = this.trueRgb ? new RgbCanvas(this.canvas) : this.canvas;
-        CanvasUtils.clear(this.drawCanvas, CanvasColor.GRAY_HIGH);
+        this.controls = controls;
+        this.drawBackground();
+    }
+
+    public void setControls(String controls) {
+        this.controls = controls;
+    }
+
+    public void drawBackground() {
+        CanvasUtils.clear(this.drawCanvas, CanvasColor.CLEAR);
         if (DEFAULT_BACKGROUND != null) {
             var background = DEFAULT_BACKGROUND;
             var width = background.getWidth() * BACKGROUND_SCALE * scale;
@@ -101,22 +111,7 @@ public class GameCanvas {
 
         DefaultFonts.UNIFONT.drawText(this.drawCanvas, this.title, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
 
-
-        var text = """
-                  ## Controls
-                  - Move with WSAD
-                  - Run with SHIFT
-                  - Mouse to look around
-                  - Left click to shoot
-                  - Right click to use
-                  - 1-7 to select weapon
-                  - F for pause/menu
-                  - SPACE to select
-                  - E to accept
-                  - Q to go back
-                """;
-
-        ExtraFonts.OPEN_ZOO_4x8.drawText(this.drawCanvas, text, drawOffsetX - 91 * scale, drawOffsetY + 70 * scale, 8 * scale, CanvasColor.BLACK_HIGH);
+        ExtraFonts.OPEN_ZOO_4x8.drawText(this.drawCanvas, controls, drawOffsetX - 91 * scale, drawOffsetY + 70 * scale, 8 * scale, CanvasColor.BLACK_HIGH);
     }
 
     public void drawError(Throwable e) {
@@ -172,11 +167,11 @@ public class GameCanvas {
         return new BlockPos(-sectionWidth, sectionHeight + 100, 0);
     }
 
-    public Vec3d getSpawnPos() {
+    public Vec3 getSpawnPos() {
         BlockPos displayPos = this.getDisplayPos();
         var trueRgbScale = this.trueRgb ? 2 : 1;
 
-        return new Vec3d(displayPos.getX() + sectionWidth * 0.5 * trueRgbScale, displayPos.getY() - sectionHeight * 0.5f * trueRgbScale + 1, 1.5 * scale * trueRgbScale + 0.01f);
+        return new Vec3(displayPos.getX() + sectionWidth * 0.5 * trueRgbScale, displayPos.getY() - sectionHeight * 0.5f * trueRgbScale + 1, 1.5 * scale * trueRgbScale + 0.01f);
     }
 
     public int getSpawnAngle() {

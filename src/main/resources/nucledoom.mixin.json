@@ -4,7 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "eu.pb4.nucledoom.NucleDoomMixinPlugin",
   "mixins": [
-
+    "LegacyRandomSourceAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

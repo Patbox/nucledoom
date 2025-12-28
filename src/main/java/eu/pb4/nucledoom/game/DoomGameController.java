@@ -1,40 +1,42 @@
 package eu.pb4.nucledoom.game;
 
 import eu.pb4.mapcanvas.api.utils.VirtualDisplay;
+import eu.pb4.nucledoom.NBSPlayer;
 import eu.pb4.nucledoom.NucleDoom;
 import eu.pb4.nucledoom.PlayerSaveData;
-import net.minecraft.block.Blocks;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ConsumableComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.decoration.DisplayEntity;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.item.Items;
-import net.minecraft.item.consume.UseAction;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.*;
-import net.minecraft.network.packet.s2c.play.*;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.WorldSavePath;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
-import net.minecraft.world.dimension.DimensionTypes;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.ChatType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.PlayerChatMessage;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemUseAnimation;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.Consumable;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
+import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
@@ -50,83 +52,54 @@ import xyz.nucleoid.plasmid.api.game.player.PlayerSet;
 import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
 import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.player.PlayerC2SPacketEvent;
+import xyz.nucleoid.stimuli.event.player.PlayerChatEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
 import java.util.List;
 import java.util.Random;
 
-public class DoomGameController implements GameHandler.PlayerInterface, GamePlayerEvents.Add, GameActivityEvents.Destroy, GameActivityEvents.Tick, GameActivityEvents.Enable, GamePlayerEvents.Remove, GamePlayerEvents.Accept, PlayerDamageEvent, PlayerDeathEvent, PlayerC2SPacketEvent {
+public class DoomGameController implements GameHandler.PlayerInterface, GamePlayerEvents.Add, GameActivityEvents.Destroy, GameActivityEvents.Tick, GameActivityEvents.Enable, GamePlayerEvents.Remove, GamePlayerEvents.Accept, PlayerDamageEvent, PlayerDeathEvent, PlayerChatEvent, PlayerC2SPacketEvent {
     private final Thread thread;
     private final GameSpace gameSpace;
-    private final ServerWorld world;
+    private final ServerLevel world;
     private final DoomConfig config;
-    private final GameHandler handler;
-    private VirtualDisplay display;
+    protected final GameHandler handler;
     private final Entity cameraEntity;
-    private final DisplayEntity.ItemDisplayEntity leftAudio;
-    private final DisplayEntity.ItemDisplayEntity rightAudio;
-    private ServerPlayerEntity player;
+    private final Display.ItemDisplay leftAudio;
+    private final Display.ItemDisplay rightAudio;
+    private VirtualDisplay display;
+    private ServerPlayer player;
     private boolean hasStarted = false;
 
-    public DoomGameController(String title, GameSpace gameSpace, ServerWorld world, DoomConfig config) {
+    public DoomGameController(GameSpace gameSpace, ServerLevel world, DoomConfig config, GameHandler handler) {
         this.gameSpace = gameSpace;
         this.world = world;
         this.config = config;
 
-        this.handler = new GameHandler(config, title, gameSpace.getServer());
+        this.handler = handler;
 
-        cameraEntity = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
+        cameraEntity = EntityType.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
         assert cameraEntity != null;
         cameraEntity.setInvisible(true);
-        world.spawnEntity(cameraEntity);
+        world.addFreshEntity(cameraEntity);
 
-        this.leftAudio = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
+        this.leftAudio = EntityType.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
         assert leftAudio != null;
         leftAudio.setInvisible(true);
-        world.spawnEntity(leftAudio);
+        world.addFreshEntity(leftAudio);
 
-        this.rightAudio = EntityType.ITEM_DISPLAY.create(world, SpawnReason.LOAD);
+        this.rightAudio = EntityType.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
         assert rightAudio != null;
         rightAudio.setInvisible(true);
-        world.spawnEntity(rightAudio);
+        world.addFreshEntity(rightAudio);
 
         this.updateSetup();
 
         this.thread = new Thread(this::runThread);
-        this.thread.setName("nucledoom_" + gameSpace.getMetadata().userId().toShortTranslationKey());
+        this.thread.setName("nucledoom_" + gameSpace.getMetadata().userId().toShortLanguageKey());
         this.thread.setDaemon(true);
         handler.setPlayerInterface(this);
-    }
-
-
-    public void updateSetup() {
-        if (this.handler.getCanvas() != null && this.hasStarted) {
-            world.setBlockState(this.cameraEntity.getBlockPos(), Blocks.AIR.getDefaultState());
-        }
-
-        this.handler.updateCanvas(false, 1);
-
-        var players = PlayerSet.EMPTY;
-        if (this.display != null) {
-            players = this.gameSpace.getPlayers();
-            this.display.destroy();
-        }
-
-        this.display = VirtualDisplay.builder(this.handler.getCanvas().getCanvas(), this.handler.getCanvas().getDisplayPos(), Direction.SOUTH)
-                .invisible()
-                .build();
-
-        players.forEach(this.display::addPlayer);
-        players.forEach(this.display.getCanvas()::addPlayer);
-
-        cameraEntity.setPosition(handler.getSpawnPos());
-        cameraEntity.setYaw(handler.getSpawnAngle());
-        leftAudio.setPosition(handler.getSpawnPos().add(2, 0, 0));
-        rightAudio.setPosition(handler.getSpawnPos().add(-2, 0, 0));
-        if (this.hasStarted) {
-            world.setBlockState(this.cameraEntity.getBlockPos(), Blocks.BARRIER.getDefaultState());
-        }
     }
 
     public static void setRules(GameActivity activity) {
@@ -157,55 +130,86 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
         DoomConfig config = context.config();
 
         if (!NucleDoom.WADS.containsKey(config.wadFile())) {
-            throw new GameOpenException(Text.literal("Missing wad file! " + config.wadFile()));
+            throw new GameOpenException(Component.literal("Missing wad file! " + config.wadFile()));
         }
 
         for (var iwad : config.pwads()) {
             if (!NucleDoom.WADS.containsKey(iwad)) {
-                throw new GameOpenException(Text.literal("Missing wad file! " + config.wadFile()));
+                throw new GameOpenException(Component.literal("Missing wad file! " + config.wadFile()));
             }
         }
 
         RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
-                .setDimensionType(DimensionTypes.OVERWORLD_CAVES)
+                .setDimensionType(BuiltinDimensionTypes.OVERWORLD_CAVES)
                 .setGenerator(new VoidChunkGenerator(context.server()));
-
 
 
         return context.openWithWorld(worldConfig, (activity, world) -> {
             //noinspection unchecked
+            var name = GameConfig.name((Holder<GameConfig<?>>) (Object) context.gameConfig()).getString();
             DoomGameController phase = new DoomGameController(
-                    GameConfig.name((RegistryEntry<GameConfig<?>>) (Object) context.gameConfig()).getString(),
-                    activity.getGameSpace(), world, config);
-            //audioController.setOutput(camera, leftAudio, rightAudio, activity.getGameSpace().getPlayers()::sendPacket);
-            DoomGameController.setRules(activity);
+                    activity.getGameSpace(), world, config, new GameHandler(config, name, activity.getGameSpace().getServer()));
 
-
-            PlayerLimiter.addTo(activity, new PlayerLimiterConfig(1));
-
-            // Listeners
-            activity.listen(GamePlayerEvents.ADD, phase);
-            activity.listen(GameActivityEvents.ENABLE, phase);
-            activity.listen(GameActivityEvents.DESTROY, phase);
-            activity.listen(GameActivityEvents.TICK, phase);
-            activity.listen(GamePlayerEvents.ACCEPT, phase);
-            activity.listen(PlayerDamageEvent.EVENT, phase);
-            activity.listen(PlayerDeathEvent.EVENT, phase);
-            activity.listen(GamePlayerEvents.REMOVE, phase);
-            activity.listen(PlayerC2SPacketEvent.EVENT, phase);
+            phase.setupActivity(activity);
         });
+    }
+
+    private void setupActivity(GameActivity activity) {
+        DoomGameController.setRules(activity);
+
+        PlayerLimiter.addTo(activity, new PlayerLimiterConfig(1));
+        // Listeners
+        activity.listen(GamePlayerEvents.ADD, this);
+        activity.listen(GameActivityEvents.ENABLE, this);
+        activity.listen(GameActivityEvents.DESTROY, this);
+        activity.listen(GameActivityEvents.TICK, this);
+        activity.listen(GamePlayerEvents.ACCEPT, this);
+        activity.listen(PlayerDamageEvent.EVENT, this);
+        activity.listen(PlayerDeathEvent.EVENT, this);
+        activity.listen(GamePlayerEvents.REMOVE, this);
+        activity.listen(PlayerC2SPacketEvent.EVENT, this);
+        activity.listen(PlayerChatEvent.EVENT, this);
+    }
+
+    public void updateSetup() {
+        if (this.handler.getCanvas() != null && this.hasStarted) {
+            world.setBlockAndUpdate(this.cameraEntity.blockPosition(), Blocks.AIR.defaultBlockState());
+        }
+
+        this.handler.updateCanvas(false, 1);
+
+        var players = PlayerSet.EMPTY;
+        if (this.display != null) {
+            players = this.gameSpace.getPlayers();
+            this.display.destroy();
+        }
+
+        this.display = VirtualDisplay.builder(this.handler.getCanvas().getCanvas(), this.handler.getCanvas().getDisplayPos(), Direction.SOUTH)
+                .invisible()
+                .build();
+
+        players.forEach(this.display::addPlayer);
+        players.forEach(this.display.getCanvas()::addPlayer);
+
+        cameraEntity.setPos(handler.getSpawnPos());
+        cameraEntity.setYRot(handler.getSpawnAngle());
+        leftAudio.setPos(handler.getSpawnPos().add(2, 0, 0));
+        rightAudio.setPos(handler.getSpawnPos().add(-2, 0, 0));
+        if (this.hasStarted) {
+            world.setBlockAndUpdate(this.cameraEntity.blockPosition(), Blocks.BARRIER.defaultBlockState());
+        }
     }
 
     // Listeners
     @Override
-    public void onAddPlayer(ServerPlayerEntity player) {
+    public void onAddPlayer(ServerPlayer player) {
         if (this.display != null) {
             this.display.addPlayer(player);
             this.display.getCanvas().addPlayer(player);
         }
-        player.networkHandler.sendPacket(new SetCameraEntityS2CPacket(this.cameraEntity));
+        player.connection.send(new ClientboundSetCameraPacket(this.cameraEntity));
 
-        player.networkHandler.sendPacket(new PlayerAbilitiesS2CPacket(player.getAbilities()));
+        player.connection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
     }
 
     @Override
@@ -217,14 +221,14 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
     }
 
     @Override
-    public EventResult onPacket(ServerPlayerEntity player, Packet<?> packet) {
-        if (packet instanceof CreativeInventoryActionC2SPacket) {
+    public EventResult onPacket(ServerPlayer player, Packet<?> packet) {
+        if (packet instanceof ServerboundSetCreativeModeSlotPacket) {
             return EventResult.DENY;
         }
 
-        if (packet instanceof PlayerLoadedC2SPacket) {
-            player.networkHandler.sendPacket(new SetCameraEntityS2CPacket(this.cameraEntity));
-            player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(8));
+        if (packet instanceof ServerboundPlayerLoadedPacket) {
+            player.connection.send(new ClientboundSetCameraPacket(this.cameraEntity));
+            player.connection.send(new ClientboundSetHeldSlotPacket(8));
             return EventResult.PASS;
         }
 
@@ -232,34 +236,34 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
             return EventResult.PASS;
         }
 
-        if (packet instanceof PlayerInputC2SPacket playerInputC2SPacket) {
-            this.handler.updateKeyboard(playerInputC2SPacket.input());
+        if (packet instanceof ServerboundPlayerInputPacket(net.minecraft.world.entity.player.Input input)) {
+            this.handler.updateKeyboard(input);
             return EventResult.DENY;
-        } else if (packet instanceof UpdateSelectedSlotC2SPacket updateSelectedSlotC2SPacket) {
-            if (updateSelectedSlotC2SPacket.getSelectedSlot() == 7) {
-                //this.updateSetup();
+        } else if (packet instanceof ServerboundSetCarriedItemPacket updateSelectedSlotC2SPacket) {
+            if (updateSelectedSlotC2SPacket.getSlot() == 7 && NucleDoom.IS_DEV) {
+                this.updateSetup();
             }
 
-            if (updateSelectedSlotC2SPacket.getSelectedSlot() != 8) {
-                this.handler.selectSlot(updateSelectedSlotC2SPacket.getSelectedSlot());
+            if (updateSelectedSlotC2SPacket.getSlot() != 8) {
+                this.handler.selectSlot(updateSelectedSlotC2SPacket.getSlot());
             }
-            player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(8));
+            player.connection.send(new ClientboundSetHeldSlotPacket(8));
             return EventResult.DENY;
-        } else if (packet instanceof ClientCommandC2SPacket clientCommandC2SPacket) {
-            if (clientCommandC2SPacket.getMode() == ClientCommandC2SPacket.Mode.OPEN_INVENTORY) {
+        } else if (packet instanceof ServerboundPlayerCommandPacket clientCommandC2SPacket) {
+            if (clientCommandC2SPacket.getAction() == ServerboundPlayerCommandPacket.Action.OPEN_INVENTORY) {
                 this.handler.pressE();
             }
             return EventResult.DENY;
-        } else if (packet instanceof PlayerInteractBlockC2SPacket blockC2SPacket) {
+        } else if (packet instanceof ServerboundUseItemOnPacket blockC2SPacket) {
             this.handler.pressMouseRight(true);
             return EventResult.DENY;
-        } else if (packet instanceof ClientTickEndC2SPacket clientTickEndC2SPacket) {
+        } else if (packet instanceof ServerboundClientTickEndPacket clientTickEndC2SPacket) {
             this.handler.clientTick();
             return EventResult.PASS;
-        } else if (packet instanceof PlayerMoveC2SPacket.LookAndOnGround playerMoveC2SPacket) {
-            this.handler.updateMousePosition(playerMoveC2SPacket.getYaw(0), playerMoveC2SPacket.getPitch(0));
+        } else if (packet instanceof ServerboundMovePlayerPacket.Rot playerMoveC2SPacket) {
+            this.handler.updateMousePosition(playerMoveC2SPacket.getYRot(0), playerMoveC2SPacket.getXRot(0));
             return EventResult.DENY;
-        } else if (packet instanceof PlayerActionC2SPacket playerActionC2SPacket) {
+        } else if (packet instanceof ServerboundPlayerActionPacket playerActionC2SPacket) {
             switch (playerActionC2SPacket.getAction()) {
                 case DROP_ITEM, DROP_ALL_ITEMS -> this.handler.pressQ();
                 case SWAP_ITEM_WITH_OFFHAND -> this.handler.pressF();
@@ -281,17 +285,17 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
 
         if (!this.hasStarted) {
             this.thread.start();
-            world.setBlockState(this.cameraEntity.getBlockPos(), Blocks.BARRIER.getDefaultState());
+            world.setBlockAndUpdate(this.cameraEntity.blockPosition(), Blocks.BARRIER.defaultBlockState());
             this.hasStarted = true;
         }
 
         for (var player : this.gameSpace.getPlayers()) {
-            if (player.getCameraEntity() != this.cameraEntity && this.cameraEntity.age > 8) {
-                player.setCameraEntity(this.cameraEntity);
+            if (player.getCamera() != this.cameraEntity && this.cameraEntity.tickCount > 8) {
+                player.setCamera(this.cameraEntity);
             }
         }
         this.handler.tick();
-        this.player.networkHandler.sendPacket(new StopSoundS2CPacket(null, SoundCategory.BLOCKS));
+        this.player.connection.send(new ClientboundStopSoundPacket(null, SoundSource.BLOCKS));
     }
 
 
@@ -300,40 +304,40 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
 
     }
 
-    private void runThread() {
-        this.handler.start();
+    protected void runThread() {
+        this.handler.start(DoomGame::create);
     }
 
     // /game open {type:"consolebox:console_box", game:"consolebox:cart"}
     @Override
     public JoinAcceptorResult onAcceptPlayers(JoinAcceptor acceptor) {
-        Vec3d spawnPos = this.handler.getSpawnPos().add(0, -EntityType.PLAYER.getHeight() + 0.2, 0);
+        Vec3 spawnPos = this.handler.getSpawnPos().add(0, -EntityType.PLAYER.getHeight() + 0.2, 0);
 
         if (acceptor.intent().canPlay()) {
             return acceptor.teleport(this.world, spawnPos, this.handler.getSpawnAngle(), 0).thenRunForEach(player -> {
                 this.player = player;
                 this.spawnMount(spawnPos.add(0, 0, 1), player);
-                this.initializePlayer(player, GameMode.SURVIVAL);
+                this.initializePlayer(player, GameType.SURVIVAL);
             });
         }
 
         return acceptor.teleport(this.world, spawnPos, this.handler.getSpawnAngle(), 0).thenRunForEach(player -> {
-            this.initializePlayer(player, GameMode.SPECTATOR);
+            this.initializePlayer(player, GameType.SPECTATOR);
         });
     }
 
     @Override
-    public EventResult onDamage(ServerPlayerEntity player, DamageSource source, float damage) {
+    public EventResult onDamage(ServerPlayer player, DamageSource source, float damage) {
         return EventResult.DENY;
     }
 
     @Override
-    public EventResult onDeath(ServerPlayerEntity player, DamageSource source) {
+    public EventResult onDeath(ServerPlayer player, DamageSource source) {
         return EventResult.DENY;
     }
 
     @Override
-    public void onRemovePlayer(ServerPlayerEntity player) {
+    public void onRemovePlayer(ServerPlayer player) {
         this.display.removePlayer(player);
         this.display.getCanvas().removePlayer(player);
 
@@ -347,66 +351,66 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
     }
 
     // Utilities
-    private void spawnMount(Vec3d playerPos, ServerPlayerEntity player) {
-        var mount = EntityType.MULE.create(this.world, SpawnReason.JOCKEY);
-        mount.calculateDimensions();
-        double y = playerPos.getY() - 0.1f;
-        mount.setPos(playerPos.getX(), y, playerPos.getZ());
-        mount.setYaw(this.handler.getSpawnAngle());
+    private void spawnMount(Vec3 playerPos, ServerPlayer player) {
+        var mount = EntityType.MULE.create(this.world, EntitySpawnReason.JOCKEY);
+        mount.refreshDimensions();
+        double y = playerPos.y() - 0.1f;
+        mount.setPosRaw(playerPos.x(), y, playerPos.z());
+        mount.setYRot(this.handler.getSpawnAngle());
 
-        mount.setAiDisabled(true);
+        mount.setNoAi(true);
         mount.setNoGravity(true);
         mount.setSilent(true);
-        mount.setPersistent();
+        mount.setPersistenceRequired();
         mount.setInvulnerable(true);
-        mount.getAttributeInstance(EntityAttributes.SCALE).setBaseValue(0);
+        mount.getAttribute(Attributes.SCALE).setBaseValue(0);
 
         // Prevent mount from being visible
-        mount.addStatusEffect(this.createInfiniteStatusEffect(StatusEffects.INVISIBILITY));
+        mount.addEffect(this.createInfiniteStatusEffect(MobEffects.INVISIBILITY));
         mount.setInvisible(true);
 
         // Remove mount hearts from HUD
-        mount.getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(0);
+        mount.getAttribute(Attributes.MAX_HEALTH).setBaseValue(0);
 
-        this.world.spawnEntity(mount);
-        player.startRiding(mount, true);
-        player.sendMessage(Text.empty(), true);
+        this.world.addFreshEntity(mount);
+        player.startRiding(mount, true, false);
+        player.displayClientMessage(Component.empty(), true);
     }
 
-    private void initializePlayer(ServerPlayerEntity player, GameMode gameMode) {
-        player.changeGameMode(gameMode);
+    protected void initializePlayer(ServerPlayer player, GameType gameMode) {
+        player.setGameMode(gameMode);
         player.setInvisible(true);
         player.setInvulnerable(true);
-        player.addStatusEffect(this.createInfiniteStatusEffect(StatusEffects.NIGHT_VISION));
-        player.addStatusEffect(this.createInfiniteStatusEffect(StatusEffects.INVISIBILITY));
-        player.getAttributes().getCustomInstance(EntityAttributes.ATTACK_SPEED).setBaseValue(9999999);
+        player.addEffect(this.createInfiniteStatusEffect(MobEffects.NIGHT_VISION));
+        player.addEffect(this.createInfiniteStatusEffect(MobEffects.INVISIBILITY));
+        player.getAttributes().getInstance(Attributes.ATTACK_SPEED).setBaseValue(9999999);
         for (int i = 0; i < 9; i++) {
-            var stack = Items.STICK.getDefaultStack();
-            stack.set(DataComponentTypes.ITEM_MODEL, Identifier.of("air"));
-            stack.set(DataComponentTypes.ITEM_NAME, Text.empty());
-            stack.set(DataComponentTypes.CONSUMABLE, new ConsumableComponent(Float.MAX_VALUE, UseAction.NONE, RegistryEntry.of(SoundEvents.INTENTIONALLY_EMPTY), false, List.of()));
-            player.getInventory().setStack(i, stack);
+            var stack = Items.STICK.getDefaultInstance();
+            stack.set(DataComponents.ITEM_MODEL, Identifier.parse("air"));
+            stack.set(DataComponents.ITEM_NAME, Component.empty());
+            stack.set(DataComponents.CONSUMABLE, new Consumable(Float.MAX_VALUE, ItemUseAnimation.NONE, Holder.direct(SoundEvents.EMPTY), false, List.of()));
+            player.getInventory().setItem(i, stack);
         }
-        player.getAbilities().creativeMode = false;
-        player.networkHandler.sendPacket(new PlayerAbilitiesS2CPacket(player.getAbilities()));
-        player.setYaw(this.handler.getSpawnAngle());
-        player.setPitch(Float.MIN_VALUE);
-        player.sendMessage(Text.empty(), true);
+        player.getAbilities().instabuild = false;
+        player.connection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
+        player.setYRot(this.handler.getSpawnAngle());
+        player.setXRot(Float.MIN_VALUE);
+        player.displayClientMessage(Component.empty(), true);
     }
 
-    private StatusEffectInstance createInfiniteStatusEffect(RegistryEntry<StatusEffect> statusEffect) {
-        return new StatusEffectInstance(statusEffect, StatusEffectInstance.INFINITE, 0, true, false);
+    private MobEffectInstance createInfiniteStatusEffect(Holder<MobEffect> statusEffect) {
+        return new MobEffectInstance(statusEffect, MobEffectInstance.INFINITE_DURATION, 0, true, false);
     }
 
     @Override
-    public void playSound(SoundEvent soundEvent, float pitch, float volume) {
-        this.gameSpace.getPlayers().sendPacket(new PlaySoundFromEntityS2CPacket(
-                Registries.SOUND_EVENT.getEntry(soundEvent),
-                SoundCategory.MASTER,
+    public void playSound(SoundEvent soundEvent, float pitch, float volume, long seed) {
+        this.gameSpace.getPlayers().sendPacket(new ClientboundSoundEntityPacket(
+                BuiltInRegistries.SOUND_EVENT.wrapAsHolder(soundEvent),
+                SoundSource.MASTER,
                 this.cameraEntity,
                 volume,
                 pitch,
-                new Random().nextLong()
+                seed
         ));
     }
 
@@ -418,7 +422,41 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
     @Override
     public @Nullable PlayerSaveData getSaveData() {
         var config = this.gameSpace.getMetadata().sourceConfig();
-        var saveId = this.config.saveName().or(() ->config.getKey().map(RegistryKey::getValue)).orElse(NucleDoom.identifier("unknown"));
-        return this.config.saves() ? new PlayerSaveData(this.gameSpace.getServer().getSavePath(WorldSavePath.ROOT).resolve("nucledoom_playerdata").resolve(this.player.getUuidAsString()).resolve(saveId.toUnderscoreSeparatedString())) : null;
+        var saveId = this.config.saveName().or(() -> config.unwrapKey().map(ResourceKey::identifier)).orElse(NucleDoom.identifier("unknown"));
+        return this.config.saves() ? new PlayerSaveData(this.gameSpace.getServer().getWorldPath(LevelResource.ROOT).resolve("nucledoom_playerdata").resolve(this.player.getStringUUID()).resolve(saveId.toDebugFileName())) : null;
+    }
+
+    public static GameOpenProcedure openNbs(GameOpenContext<DoomConfig> context) {
+        RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+                .setDimensionType(BuiltinDimensionTypes.OVERWORLD_CAVES)
+                .setGenerator(new VoidChunkGenerator(context.server()));
+
+
+        return context.openWithWorld(worldConfig, (activity, world) -> {
+            //noinspection unchecked
+            var name = GameConfig.name((Holder<GameConfig<?>>) (Object) context.gameConfig()).getString();
+            DoomGameController phase = new DoomGameController(
+                    activity.getGameSpace(), world, context.config(), new GameHandler(context.config(), name, activity.getGameSpace().getServer())) {
+                @Override
+                protected void runThread() {
+                    this.handler.start(((handler1, saveData, config1, resourceManager) -> new DoomGame.Open(new NBSPlayer(handler1, saveData, config1, resourceManager), null)));
+                }
+
+                @Override
+                protected void initializePlayer(ServerPlayer player, GameType gameMode) {
+                    super.initializePlayer(player, GameType.SPECTATOR);
+                }
+            };
+
+            phase.setupActivity(activity);
+        });
+    }
+
+    @Override
+    public EventResult onSendChatMessage(ServerPlayer serverPlayer, PlayerChatMessage playerChatMessage, ChatType.Bound bound) {
+        if (bound.chatType().is(ChatType.CHAT)) {
+            return this.handler.onChat(playerChatMessage.signedContent()) ? EventResult.DENY : EventResult.PASS;
+        }
+        return EventResult.PASS;
     }
 }

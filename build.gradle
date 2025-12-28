@@ -1,5 +1,5 @@
 plugins {
-	id "fabric-loom" version "1.10.+"
+	id "fabric-loom" version "1.13.+"
 	id "maven-publish"
 }
 
@@ -27,7 +27,7 @@ repositories {
 dependencies {
 	// Main
 	minecraft("com.mojang:minecraft:${project.minecraft_version}")
-	mappings("net.fabricmc:yarn:${project.yarn_mappings}:v2")
+	mappings loom.officialMojangMappings()
 	modImplementation("net.fabricmc:fabric-loader:${project.loader_version}")
 
 	// Fabric API
@@ -35,9 +35,14 @@ dependencies {
 
 	// Plasmid
 	modImplementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
+	modImplementation include("eu.pb4:polymer-core:0.15.1+1.21.11")
+	modImplementation include("eu.pb4:polymer-resource-pack:0.15.1+1.21.11")
+	modImplementation include("eu.pb4:polymer-resource-pack-extras:0.15.1+1.21.11")
+	modImplementation include("eu.pb4:polymer-virtual-entity:0.15.1+1.21.11")
+	modImplementation include("eu.pb4:polymer-sound-patcher:0.15.1+1.21.11")
 	//modImplementation("eu.pb4:polymer-resource-pack-extras:0.11.8+1.21.4")
 
-	implementation include("net.raphimc:NoteBlockLib:3.1.0")
+	implementation include("net.raphimc:NoteBlockLib:3.1.1")
 	//implementation include('org.gagravarr:vorbis-java-core:0.8')
 }
 

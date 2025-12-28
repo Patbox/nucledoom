@@ -1,7 +1,7 @@
 package eu.pb4.nucledoom.game;
 
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
-import net.minecraft.util.math.ColorHelper;
+import net.minecraft.util.ARGB;
 
 public class RgbColorUtil {
     public static final byte[] INDEX_2_DATA = {
@@ -40,6 +40,6 @@ public class RgbColorUtil {
     };
 
     private static byte ivec3(int x, int y, int z) {
-        return CanvasUtils.findClosestRawColorARGB(ColorHelper.getArgb(x, y, z));
+        return CanvasUtils.findClosestRawColorARGB(ARGB.color(x, y, z));
     }
 }

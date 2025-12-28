@@ -1,13 +1,10 @@
 package eu.pb4.doomwrapper;
 
 import eu.pb4.nucledoom.game.SoundTarget;
-import net.minecraft.registry.Registries;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
-import net.raphimc.noteblocklib.NoteBlockLib;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.raphimc.noteblocklib.data.MinecraftDefinitions;
 import net.raphimc.noteblocklib.data.MinecraftInstrument;
-import net.raphimc.noteblocklib.format.SongFormat;
 import net.raphimc.noteblocklib.format.midi.MidiIo;
 import net.raphimc.noteblocklib.model.Note;
 import net.raphimc.noteblocklib.model.Song;
@@ -16,8 +13,6 @@ import s.IMusic;
 import s.MusReader;
 
 import java.io.ByteArrayInputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -132,7 +127,7 @@ public class MinecraftMusicDriver implements IMusic {
                             MinecraftDefinitions.instrumentShiftNote(tmpNote);
                             MinecraftDefinitions.clampNoteKey(tmpNote);
                             game.playSound(SoundTarget.MUSIC_VANILLA,
-                                    Registries.SOUND_EVENT.get(Identifier.of(((MinecraftInstrument) tmpNote.getInstrument()).mcSoundName())),
+                                    BuiltInRegistries.SOUND_EVENT.getValue(Identifier.parse(((MinecraftInstrument) tmpNote.getInstrument()).mcSoundName())),
                                     tmpNote.getPitch(), volume * tmpNote.getVolume());
                         }
                         if (game.supportsSoundTarget(SoundTarget.MUSIC_EXT)) {
@@ -141,11 +136,11 @@ public class MinecraftMusicDriver implements IMusic {
                             tmpNote.setVolume(note.getVolume());
                             var suffix = MinecraftDefinitions.applyExtendedNotesResourcePack(tmpNote);
                             game.playSound(SoundTarget.MUSIC_EXT,
-                                    new SoundEvent(Identifier.of(instrument.mcSoundName() + "_" + suffix), Optional.empty()),
+                                    new net.minecraft.sounds.SoundEvent(Identifier.tryParse(instrument.mcSoundName() + "_" + suffix), Optional.empty()),
                                     tmpNote.getPitch(), volume * tmpNote.getVolume());
                         }
                     } else {
-                        game.playSound(SoundTarget.MUSIC_ANY, Registries.SOUND_EVENT.get(Identifier.of(instrument.mcSoundName())), note.getPitch(), volume * note.getVolume());
+                        game.playSound(SoundTarget.MUSIC_ANY,  BuiltInRegistries.SOUND_EVENT.getValue(Identifier.tryParse(instrument.mcSoundName())), note.getPitch(), volume * note.getVolume());
                     }
                 }
             }

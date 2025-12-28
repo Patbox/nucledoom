@@ -3,8 +3,8 @@ package eu.pb4.nucledoom.game;
 import eu.pb4.nucledoom.NucleDoom;
 import eu.pb4.nucledoom.PlayerSaveData;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.util.PlayerInput;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.world.entity.player.Input;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Files;
@@ -13,6 +13,11 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public interface DoomGame {
+    interface GameOpener {
+        Open createGame(@Nullable GameHandler handler, @Nullable PlayerSaveData saveData, DoomConfig config, ResourceManager resourceManager) throws Throwable;
+    }
+
+
     static Open create(@Nullable GameHandler handler, @Nullable PlayerSaveData saveData, DoomConfig config, ResourceManager resourceManager) throws Throwable {
         List<Path> path = null;
         var base = FabricLoader.getInstance().getGameDir();
@@ -44,11 +49,13 @@ public interface DoomGame {
 
     void clear();
 
-    void updateKeyboard(PlayerInput input);
+    void updateKeyboard(Input input);
 
-    void updateMouse(float xDelta, boolean mouseLeft);
+    void updateMouse(float xDelta, float yDelta, boolean mouseLeft);
 
     void selectSlot(int selectedSlot);
+
+    boolean onChat(String message);
 
     void pressE();
 
@@ -60,6 +67,7 @@ public interface DoomGame {
 
     void extractAudio(BiConsumer<String, byte[]> consumer);
 
-    record Open(DoomGame game, JarGameClassLoader loader) {
-    }
+    String getControls();
+
+    record Open(DoomGame game, JarGameClassLoader loader) {}
 }

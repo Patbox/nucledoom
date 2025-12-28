@@ -1,3 +1,4 @@
 {
-	"gameType.nucledoom.doom": "NucleDoom"
+	"gameType.nucledoom.doom": "NucleDoom",
+	"gameType.nucledoom.nbs_player": "NBS Player"
 }

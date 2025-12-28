@@ -13,9 +13,10 @@ import i.DoomSystem;
 import m.Menu;
 import mochadoom.SystemHandler;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.PlayerInput;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Input;
 import org.jetbrains.annotations.Nullable;
 import utils.C2JUtils;
 
@@ -42,7 +43,7 @@ public class DoomGameImpl implements DoomGame {
     private final Map<String, byte[]> iwadData = new HashMap<>();
     private final String wadName;
     private volatile boolean close = false;
-    private PlayerInput input = PlayerInput.DEFAULT;
+    private Input input = Input.EMPTY;
     private int pressF;
     private int pressE;
     private int pressQ;
@@ -180,7 +181,7 @@ public class DoomGameImpl implements DoomGame {
     }
 
     @Override
-    public void updateKeyboard(PlayerInput input) {
+    public void updateKeyboard(Input input) {
         var menu = this.doom.paused || this.doom.menuactive;
 
         if (this.input.forward() != input.forward()) {
@@ -195,8 +196,8 @@ public class DoomGameImpl implements DoomGame {
         if (this.input.right() != input.right()) {
             this.doom.PostEvent(new event_t.keyevent_t(input.right() ? evtype_t.ev_keydown : evtype_t.ev_keyup, menu ? Signals.ScanCode.SC_RIGHT : Signals.ScanCode.SC_D));
         }
-        if (this.input.sneak() != input.sneak()) {
-            this.doom.PostEvent(new event_t.keyevent_t(input.sneak() ? evtype_t.ev_keydown : evtype_t.ev_keyup, Signals.ScanCode.SC_LSHIFT));
+        if (this.input.shift() != input.shift()) {
+            this.doom.PostEvent(new event_t.keyevent_t(input.shift() ? evtype_t.ev_keydown : evtype_t.ev_keyup, Signals.ScanCode.SC_LSHIFT));
         }
         if (this.input.sprint() != input.sprint()) {
             this.doom.PostEvent(new event_t.keyevent_t(input.sprint() ? evtype_t.ev_keydown : evtype_t.ev_keyup, Signals.ScanCode.SC_TAB));
@@ -210,7 +211,7 @@ public class DoomGameImpl implements DoomGame {
     }
 
     @Override
-    public void updateMouse(float v, boolean mouseLeft) {
+    public void updateMouse(float v, float yDelta, boolean mouseLeft) {
         double d = 0.6000000238418579 + 0.20000000298023224;
         double e = d * d * d;
         double f = e * 8.0;
@@ -234,6 +235,12 @@ public class DoomGameImpl implements DoomGame {
         var sig = Signals.ScanCode.values()[Signals.ScanCode.SC_1.ordinal() + selectedSlot];
         this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keydown, sig));
         this.pressNum[selectedSlot] = 2;
+    }
+
+    @Override
+    public boolean onChat(String message) {
+
+        return false;
     }
 
     @Override
@@ -298,9 +305,26 @@ public class DoomGameImpl implements DoomGame {
         }
     }
 
+    @Override
+    public String getControls() {
+        return """
+                  ## Controls
+                  - Move with WSAD
+                  - Run with SHIFT
+                  - Mouse to look around
+                  - Left click to shoot
+                  - Right click to use
+                  - 1-7 to select weapon
+                  - F for pause/menu
+                  - SPACE to select
+                  - E to accept
+                  - Q to go back
+                """;
+    }
+
     public void playSound(SoundTarget target, SoundEvent soundVanilla, float pitch, float volume) {
         if (this.handler != null) {
-            this.handler.playSound(target, soundVanilla, pitch, volume);
+            this.handler.playSound(target, soundVanilla, pitch, volume, RandomSource.create().nextLong());
         }
     }
 
@@ -335,7 +359,7 @@ public class DoomGameImpl implements DoomGame {
                 var resource = optional.get();
                 Supplier<InputStream> supplier = () -> {
                     try {
-                        return resource.getInputStream();
+                        return resource.open();
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }

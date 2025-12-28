@@ -1,0 +1,8 @@
+{
+  "type": "nucledoom:nbs_player",
+  "name": "NBS Player",
+  "description": [],
+  "icon": {
+    "id": "note_block"
+  }
+}

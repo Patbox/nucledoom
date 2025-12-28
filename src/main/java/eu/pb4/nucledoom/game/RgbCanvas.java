@@ -3,7 +3,7 @@ package eu.pb4.nucledoom.game;
 import eu.pb4.mapcanvas.api.core.CanvasColor;
 import eu.pb4.mapcanvas.api.core.DrawableCanvas;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
-import net.minecraft.util.math.ColorHelper;
+import net.minecraft.util.ARGB;
 
 public record RgbCanvas(DrawableCanvas canvas) implements DrawableCanvas {
     @Override
@@ -23,7 +23,7 @@ public record RgbCanvas(DrawableCanvas canvas) implements DrawableCanvas {
         var b4 = RgbColorUtil.INDEX_2_DATA[this.canvas.getRaw(x * 2 + 1, y * 2 + 1)];
 
         b1 |= (b4 & 1) << 7; b2 |= (b4 & 2) << 6; b3 |= (b4 & 4) << 5;
-        return ColorHelper.getArgb(b3, b2, b1);
+        return ARGB.color(b3, b2, b1);
     }
 
     public void setRgb(int x, int y, int d) {

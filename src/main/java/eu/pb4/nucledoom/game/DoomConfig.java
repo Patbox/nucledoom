@@ -3,12 +3,11 @@ package eu.pb4.nucledoom.game;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.dynamic.Codecs;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ExtraCodecs;
 
 public record DoomConfig(Identifier wadFile, String wadName,
                          List<Identifier> pwads,
@@ -20,7 +19,7 @@ public record DoomConfig(Identifier wadFile, String wadName,
         return instance.group(
                 Identifier.CODEC.fieldOf("wad").forGetter(DoomConfig::wadFile),
                 Codec.STRING.fieldOf("wad_name").forGetter(DoomConfig::wadName),
-                Codecs.listOrSingle(Identifier.CODEC).optionalFieldOf("pwad", List.of()).forGetter(DoomConfig::pwads),
+                ExtraCodecs.compactListCodec(Identifier.CODEC).optionalFieldOf("pwad", List.of()).forGetter(DoomConfig::pwads),
                 Codec.STRING.listOf().optionalFieldOf("cvars", List.of()).forGetter(DoomConfig::cvars),
                 Codec.unboundedMap(Codec.STRING, Identifier.CODEC).optionalFieldOf("resources", Map.of()).forGetter(DoomConfig::resourceMap),
                 Codec.BOOL.optionalFieldOf("saves", true).forGetter(DoomConfig::saves),
