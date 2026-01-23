@@ -5,71 +5,44 @@ import eu.pb4.mapcanvas.api.font.DefaultFonts;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
 import eu.pb4.nucledoom.ExtraFonts;
 import eu.pb4.nucledoom.NucleDoom;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.MapItem;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
 public class GameCanvas {
     private static final Logger LOGGER = LoggerFactory.getLogger("GameCanvas");
 
-    private static final CanvasImage DEFAULT_BACKGROUND = readImage("default_background");
-    private static final CanvasImage DEFAULT_OVERLAY = readImage("default_overlay");
-    private static final CanvasImage DEFAULT_OVERLAY_RESET = readImage("default_overlay_reset");
-    private static final int BACKGROUND_SCALE = 1;
+    private static final int MAP_SIZE = MapItem.IMAGE_WIDTH;
     private final String title;
     private final boolean trueRgb;
     private final DrawableCanvas drawCanvas;
-    private String controls;
-
-    private static CanvasImage readImage(String path) {
-        CanvasImage temp;
-        try {
-            temp = CanvasImage.from(ImageIO.read(
-                    Files.newInputStream(FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get().findPath("data/nucledoom/background/" + path + ".png").get())));
-        } catch (Throwable e) {
-            temp = new CanvasImage(128, 128);
-
-            e.printStackTrace();
-        }
-        return temp;
-    }
-
-    private static final int RENDER_SCALE = 1;
-    private static final int MAP_SIZE = MapItem.IMAGE_WIDTH;
-
-    private static  final int DEFAULT_SCREEN_WIDTH = 320;
-    private static final int DEFAULT_SCREEN_HEIGHT = 200;
-
-    private final int scale;
-
     private final int screenWidth;
     private final int screenHeight;
     private final int sectionHeight;
     private final int sectionWidth;
-
     private final int drawOffsetX;
     private final int drawOffsetY;
-
     private final CombinedPlayerCanvas canvas;
-
+    private String controls;
     private long previousFrameTime = -1;
+    private CanvasImage background;
+    private CanvasImage overlay;
+    private CanvasImage overlayReset;
+    private int backgroundScale = 1;
 
-    public GameCanvas(String title, boolean trueRgb, int scale, String controls) {
+    public GameCanvas(String title, boolean trueRgb, DoomGame.ScreenInfo screenInfo, String controls) {
         this.title = title;
         this.trueRgb = trueRgb;
-        this.scale = scale;
-        this.screenHeight = DEFAULT_SCREEN_HEIGHT * scale;
-        this.screenWidth = DEFAULT_SCREEN_WIDTH * scale;
-        this.sectionHeight = 5 * scale;
-        this.sectionWidth = 8 * scale;
+        this.screenHeight = screenInfo.height();
+        this.screenWidth = screenInfo.width();
+        this.sectionHeight = (5 * 128 - 200 + screenHeight) / 128;
+        this.sectionWidth = (8 * 128 - 360 + screenWidth) / 128;
         this.drawOffsetX = sectionWidth * 64 - screenWidth / 2;
         this.drawOffsetY = sectionHeight * 64 - screenHeight / 2;
         var trueRgbScale = this.trueRgb ? 2 : 1;
@@ -77,7 +50,19 @@ public class GameCanvas {
         this.canvas = DrawableCanvas.create(sectionWidth * trueRgbScale, sectionHeight * trueRgbScale);
         this.drawCanvas = this.trueRgb ? new RgbCanvas(this.canvas) : this.canvas;
         this.controls = controls;
+        this.updateBackgroundTexture(screenInfo.background(), screenInfo.overlay(),  screenInfo.overlayReset(), screenInfo.backgroundScale());
         this.drawBackground();
+    }
+
+    public void updateBackgroundTexture(Identifier background, Identifier overlay, Identifier overlayReset, int backgroundScale) {
+        this.updateBackgroundTexture(NucleDoom.BACKGROUND.get(background), NucleDoom.BACKGROUND.get(overlay), NucleDoom.BACKGROUND.get(overlayReset), backgroundScale);
+    }
+
+    public void updateBackgroundTexture(CanvasImage background, CanvasImage overlay, CanvasImage overlayReset, int backgroundScale) {
+        this.background = background;
+        this.overlay = overlay;
+        this.overlayReset = overlayReset;
+        this.backgroundScale = backgroundScale;
     }
 
     public void setControls(String controls) {
@@ -86,10 +71,9 @@ public class GameCanvas {
 
     public void drawBackground() {
         CanvasUtils.clear(this.drawCanvas, CanvasColor.CLEAR);
-        if (DEFAULT_BACKGROUND != null) {
-            var background = DEFAULT_BACKGROUND;
-            var width = background.getWidth() * BACKGROUND_SCALE * scale;
-            var height = background.getHeight() * BACKGROUND_SCALE * scale;
+        if (background != null) {
+            var width = background.getWidth() * backgroundScale;
+            var height = background.getHeight() * backgroundScale;
             var repeatsX = Math.ceilDiv(this.drawCanvas.getWidth(), width);
             var repeatsY = Math.ceilDiv(this.drawCanvas.getHeight(), height);
 
@@ -100,10 +84,10 @@ public class GameCanvas {
             }
         }
 
-        if (DEFAULT_OVERLAY != null) {
-            var background = DEFAULT_OVERLAY;
-            var width = background.getWidth() * BACKGROUND_SCALE * scale;
-            var height = background.getHeight() * BACKGROUND_SCALE * scale;
+        if (overlay != null) {
+            var background = overlay;
+            var width = background.getWidth() * backgroundScale;
+            var height = background.getHeight() * backgroundScale;
             CanvasUtils.draw(this.drawCanvas, this.drawCanvas.getWidth() / 2 - width / 2, this.drawCanvas.getHeight() / 2 - height / 2, width, height, background);
         }
 
@@ -111,7 +95,7 @@ public class GameCanvas {
 
         DefaultFonts.UNIFONT.drawText(this.drawCanvas, this.title, drawOffsetX + 2, drawOffsetY - 16 - 4, 16, CanvasColor.WHITE_HIGH);
 
-        ExtraFonts.OPEN_ZOO_4x8.drawText(this.drawCanvas, controls, drawOffsetX - 91 * scale, drawOffsetY + 70 * scale, 8 * scale, CanvasColor.BLACK_HIGH);
+        ExtraFonts.OPEN_ZOO_4x8.drawText(this.drawCanvas, controls, drawOffsetX - 91 * backgroundScale, drawOffsetY + 70 * backgroundScale, 8 * backgroundScale, CanvasColor.BLACK_HIGH);
     }
 
     public void drawError(Throwable e) {
@@ -149,12 +133,12 @@ public class GameCanvas {
         }
         message2Split.add(builder.toString());
 
-        CanvasUtils.fill(this.drawCanvas, 0 + drawOffsetX, 63 + drawOffsetY,
+        CanvasUtils.fill(this.drawCanvas, drawOffsetX, 63 + drawOffsetY,
                 screenWidth + drawOffsetX, 65 + 8 + drawOffsetY, CanvasColor.BLUE_HIGH);
 
         DefaultFonts.VANILLA.drawText(canvas, message1, 5 + drawOffsetX, 64 + drawOffsetY, 8, CanvasColor.WHITE_HIGH);
 
-        CanvasUtils.fill(this.drawCanvas, 0 + drawOffsetX, 63 + 10 + drawOffsetY,
+        CanvasUtils.fill(this.drawCanvas, drawOffsetX, 63 + 10 + drawOffsetY,
                 screenWidth + drawOffsetX, 65 + 10 + message2Split.size() * 10 + drawOffsetY, CanvasColor.BLUE_HIGH);
         for (int i = 0; i < message2Split.size(); i++) {
             DefaultFonts.VANILLA.drawText(canvas, message2Split.get(i), 5 + drawOffsetX, 64 + 10 + 10 * i + drawOffsetY, 8, CanvasColor.WHITE_HIGH);
@@ -171,12 +155,9 @@ public class GameCanvas {
         BlockPos displayPos = this.getDisplayPos();
         var trueRgbScale = this.trueRgb ? 2 : 1;
 
-        return new Vec3(displayPos.getX() + sectionWidth * 0.5 * trueRgbScale, displayPos.getY() - sectionHeight * 0.5f * trueRgbScale + 1, 1.5 * scale * trueRgbScale + 0.01f);
+        return new Vec3(displayPos.getX() + sectionWidth * 0.5 * trueRgbScale, displayPos.getY() - sectionHeight * 0.5f * trueRgbScale + 1, 1.5 *  this.screenWidth / 320 * trueRgbScale + 0.01f);
     }
 
-    public int getSpawnAngle() {
-        return 180;
-    }
 
     public PlayerCanvas getCanvas() {
         return this.canvas;
@@ -186,16 +167,16 @@ public class GameCanvas {
         var trueRgbScale = this.trueRgb ? 2 : 1;
         var frame = System.currentTimeMillis();
 
-        if (DEFAULT_OVERLAY_RESET != null) {
-            var background = DEFAULT_OVERLAY_RESET;
-            var width = background.getWidth() * BACKGROUND_SCALE * scale;
-            var height = background.getHeight() * BACKGROUND_SCALE * scale;
+        if (overlayReset != null) {
+            var background = overlayReset;
+            var width = background.getWidth() * backgroundScale;
+            var height = background.getHeight() * backgroundScale;
 
             CanvasUtils.draw(this.drawCanvas, this.drawCanvas.getWidth() / 2 - width / 2, this.drawCanvas.getHeight() / 2 - height / 2, width, height,
                     background);
         }
         var text = String.format("%s - %s MS", this.title, frame - previousFrameTime);
-        DefaultFonts.UNIFONT.drawText(this.drawCanvas, text, drawOffsetX + 2 * scale, drawOffsetY - (16 + 4) * scale, 16 * scale, CanvasColor.WHITE_HIGH);
+        DefaultFonts.UNIFONT.drawText(this.drawCanvas, text, drawOffsetX + 2 * backgroundScale, drawOffsetY - (16 + 4) * backgroundScale, 16 * backgroundScale, CanvasColor.WHITE_HIGH);
 
         CanvasUtils.draw(this.canvas, drawOffsetX * trueRgbScale, drawOffsetY * trueRgbScale, canvas);
 
@@ -203,11 +184,19 @@ public class GameCanvas {
         this.canvas.sendUpdates();
     }
 
-    public int getScale() {
-        return this.scale;
-    }
-
     public boolean trueRgb() {
         return this.trueRgb;
+    }
+
+    public void close() {
+        this.canvas.destroy();
+    }
+
+    public int getScreenWidth() {
+        return this.screenWidth;
+    }
+
+    public int getScreenHeight() {
+        return screenHeight;
     }
 }

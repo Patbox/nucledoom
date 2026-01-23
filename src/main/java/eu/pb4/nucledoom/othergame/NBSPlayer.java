@@ -1,10 +1,14 @@
-package eu.pb4.nucledoom;
+package eu.pb4.nucledoom.othergame;
 
 import eu.pb4.mapcanvas.api.core.CanvasColor;
 import eu.pb4.mapcanvas.api.core.CanvasImage;
 import eu.pb4.mapcanvas.api.font.CanvasFont;
 import eu.pb4.mapcanvas.api.font.DefaultFonts;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
+import eu.pb4.nucledoom.ExtraFonts;
+import eu.pb4.nucledoom.NucleDoom;
+import eu.pb4.nucledoom.PlayerSaveData;
+import eu.pb4.nucledoom.SoundDecoder;
 import eu.pb4.nucledoom.game.*;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -367,8 +371,17 @@ public class NBSPlayer implements DoomGame {
     }
 
     @Override
-    public void updateMouse(float xDelta, float yDelta, boolean mouseLeft) {
+    public void updateMouse(float xDelta, float yDelta) {
 
+    }
+
+    @Override
+    public void pressMouseRight(boolean value) {
+
+    }
+
+    @Override
+    public void pressMouseLeft(boolean value) {
 
     }
 

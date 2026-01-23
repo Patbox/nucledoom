@@ -26,4 +26,8 @@ public record DoomConfig(Identifier wadFile, String wadName,
                 Identifier.CODEC.optionalFieldOf("save_name").forGetter(DoomConfig::saveName)
         ).apply(instance, DoomConfig::new);
     });
+
+    public static DoomConfig fake(Identifier id, String name) {
+        return new DoomConfig(id, name, List.of(), List.of(), Map.of(), false, Optional.empty());
+    }
 }

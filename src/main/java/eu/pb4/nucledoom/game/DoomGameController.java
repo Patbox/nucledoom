@@ -1,7 +1,6 @@
 package eu.pb4.nucledoom.game;
 
 import eu.pb4.mapcanvas.api.utils.VirtualDisplay;
-import eu.pb4.nucledoom.NBSPlayer;
 import eu.pb4.nucledoom.NucleDoom;
 import eu.pb4.nucledoom.PlayerSaveData;
 import net.minecraft.core.Direction;
@@ -57,7 +56,6 @@ import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
 import java.util.List;
-import java.util.Random;
 
 public class DoomGameController implements GameHandler.PlayerInterface, GamePlayerEvents.Add, GameActivityEvents.Destroy, GameActivityEvents.Tick, GameActivityEvents.Enable, GamePlayerEvents.Remove, GamePlayerEvents.Accept, PlayerDamageEvent, PlayerDeathEvent, PlayerChatEvent, PlayerC2SPacketEvent {
     private final Thread thread;
@@ -154,6 +152,35 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
         });
     }
 
+    public static xyz.nucleoid.plasmid.api.game.GameType.Open<DoomConfig> unvalidatedOpener(DoomGame.GameOpener opener) {
+        return context -> {
+            RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+                    .setDimensionType(BuiltinDimensionTypes.OVERWORLD_CAVES)
+                    .setGenerator(new VoidChunkGenerator(context.server()));
+
+
+            return context.openWithWorld(worldConfig, (activity, world) -> {
+                //noinspection unchecked
+                var name = GameConfig.name((Holder<GameConfig<?>>) (Object) context.gameConfig()).getString();
+                DoomGameController phase = new DoomGameController(
+                        activity.getGameSpace(), world, context.config(), new GameHandler(context.config(), name, activity.getGameSpace().getServer())) {
+                    @Override
+                    protected void runThread() {
+                        this.handler.start(opener);
+                    }
+
+                    @Override
+                    protected void initializePlayer(ServerPlayer player, GameType gameMode) {
+                        super.initializePlayer(player, GameType.SPECTATOR);
+                    }
+                };
+
+                phase.setupActivity(activity);
+            });
+        };
+    }
+
+
     private void setupActivity(GameActivity activity) {
         DoomGameController.setRules(activity);
 
@@ -175,9 +202,12 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
         if (this.handler.getCanvas() != null && this.hasStarted) {
             world.setBlockAndUpdate(this.cameraEntity.blockPosition(), Blocks.AIR.defaultBlockState());
         }
+        this.handler.updateCanvas(false);
+        this.reconfigureCanvas();
+    }
 
-        this.handler.updateCanvas(false, 1);
-
+    @Override
+    public void reconfigureCanvas() {
         var players = PlayerSet.EMPTY;
         if (this.display != null) {
             players = this.gameSpace.getPlayers();
@@ -269,7 +299,7 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
                 case SWAP_ITEM_WITH_OFFHAND -> this.handler.pressF();
                 case START_DESTROY_BLOCK -> this.handler.pressMouseLeft(true);
                 case ABORT_DESTROY_BLOCK -> this.handler.pressMouseLeft(false);
-                //case RELEASE_USE_ITEM -> this.canvas.pressMouseRight(false);
+                case RELEASE_USE_ITEM -> this.handler.pressMouseRight(false);
             }
             return EventResult.DENY;
         }
@@ -424,32 +454,6 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
         var config = this.gameSpace.getMetadata().sourceConfig();
         var saveId = this.config.saveName().or(() -> config.unwrapKey().map(ResourceKey::identifier)).orElse(NucleDoom.identifier("unknown"));
         return this.config.saves() ? new PlayerSaveData(this.gameSpace.getServer().getWorldPath(LevelResource.ROOT).resolve("nucledoom_playerdata").resolve(this.player.getStringUUID()).resolve(saveId.toDebugFileName())) : null;
-    }
-
-    public static GameOpenProcedure openNbs(GameOpenContext<DoomConfig> context) {
-        RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
-                .setDimensionType(BuiltinDimensionTypes.OVERWORLD_CAVES)
-                .setGenerator(new VoidChunkGenerator(context.server()));
-
-
-        return context.openWithWorld(worldConfig, (activity, world) -> {
-            //noinspection unchecked
-            var name = GameConfig.name((Holder<GameConfig<?>>) (Object) context.gameConfig()).getString();
-            DoomGameController phase = new DoomGameController(
-                    activity.getGameSpace(), world, context.config(), new GameHandler(context.config(), name, activity.getGameSpace().getServer())) {
-                @Override
-                protected void runThread() {
-                    this.handler.start(((handler1, saveData, config1, resourceManager) -> new DoomGame.Open(new NBSPlayer(handler1, saveData, config1, resourceManager), null)));
-                }
-
-                @Override
-                protected void initializePlayer(ServerPlayer player, GameType gameMode) {
-                    super.initializePlayer(player, GameType.SPECTATOR);
-                }
-            };
-
-            phase.setupActivity(activity);
-        });
     }
 
     @Override

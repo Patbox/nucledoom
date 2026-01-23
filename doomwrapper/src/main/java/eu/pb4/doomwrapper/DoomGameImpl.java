@@ -42,6 +42,7 @@ public class DoomGameImpl implements DoomGame {
     private final byte[] wadData;
     private final Map<String, byte[]> iwadData = new HashMap<>();
     private final String wadName;
+    private final ScreenInfo screenInfo;
     private volatile boolean close = false;
     private Input input = Input.EMPTY;
     private int pressF;
@@ -51,6 +52,7 @@ public class DoomGameImpl implements DoomGame {
     private FastCanvasImage screen;
     private final int[] pressNum = new int[9];
     private final event_t.mouseevent_t mouseEvent = new event_t.mouseevent_t(evtype_t.ev_mouse, 0, 0, 0);
+    private boolean mouseLeft;
 
 
     public DoomGameImpl(@Nullable GameHandler gameHandler,
@@ -58,6 +60,7 @@ public class DoomGameImpl implements DoomGame {
                         DoomConfig config,
                         ResourceManager resourceManager) throws IOException {
         SoundMap.updateSoundMap();
+        this.screenInfo = ScreenInfo.DEFAULT.scale(gameHandler != null ? gameHandler.getScale() : 1);
         this.handler  = gameHandler;
         this.resource = resourceManager;
         this.config = config;
@@ -65,7 +68,7 @@ public class DoomGameImpl implements DoomGame {
         this.wadData = NucleDoom.WADS.get(this.config.wadFile());
         SystemHandler.instance = new NucleSystemHandler(this, saveData);
         var cvars = new ArrayList<String>();
-        cvars.addAll(List.of("-multiply", String.valueOf(handler != null ? handler.getCanvas().getScale() : 1), "-novolatileimage", "-hidediskdrawer", "-iwad", this.wadName));
+        cvars.addAll(List.of("-multiply", String.valueOf(handler != null ? handler.getScale() : 1), "-novolatileimage", "-hidediskdrawer", "-iwad", this.wadName));
         if (!config.pwads().isEmpty()) {
             cvars.add("-file");
             int i = 0;
@@ -211,13 +214,13 @@ public class DoomGameImpl implements DoomGame {
     }
 
     @Override
-    public void updateMouse(float v, float yDelta, boolean mouseLeft) {
+    public void updateMouse(float v, float yDelta) {
         double d = 0.6000000238418579 + 0.20000000298023224;
         double e = d * d * d;
         double f = e * 8.0;
 
         this.mouseEvent.x = (int) (v * 6 / 0.15 / f) ;
-        if (mouseLeft) {
+        if (this.mouseLeft) {
             this.mouseEvent.buttons |= event_t.MOUSE_LEFT;
         } else {
             this.mouseEvent.buttons &= 0b110;
@@ -262,6 +265,19 @@ public class DoomGameImpl implements DoomGame {
     public void pressF() {
         this.doom.PostEvent(new event_t.keyevent_t(evtype_t.ev_keydown, Signals.ScanCode.SC_ESCAPE));
         this.pressF = 5;
+    }
+
+    @Override
+    public void pressMouseLeft(boolean value) {
+        this.mouseLeft = value;
+        this.updateMouse(0, 0);
+    }
+
+    @Override
+    public void pressMouseRight(boolean value) {
+        if (value) {
+            this.pressE();
+        }
     }
 
     @Override
@@ -407,5 +423,10 @@ public class DoomGameImpl implements DoomGame {
 
     public void mainLoopStart() {
         this.doom.PostEvent(this.mouseEvent);
+    }
+
+    @Override
+    public ScreenInfo getScreenInfo() {
+        return this.screenInfo;
     }
 }

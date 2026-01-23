@@ -9,7 +9,7 @@ import java.util.Set;
 
 public class NucleDoomMixinPlugin implements IMixinConfigPlugin  {
 	static  {
-		System.setProperty("java.awt.headless", "true");
+		//System.setProperty("java.awt.headless", "true");
 	}
 
 	@Override

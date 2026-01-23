@@ -31,6 +31,7 @@ public class GameHandler {
     private PlayerInterface playerInterface = PlayerInterface.NO_OP;
     private DoomGame game = null;
     private JarGameClassLoader classLoader = null;
+    private int scale = 1;
 
     public GameHandler(DoomConfig config, String title, MinecraftServer server) {
         this.config = config;
@@ -38,8 +39,11 @@ public class GameHandler {
         this.title = title;
     }
 
-    public void updateCanvas(boolean trueRgb, int scale) {
-        this.canvas = new GameCanvas(title, trueRgb, scale, this.game != null ? this.game.getControls() : "");
+    public void updateCanvas(boolean trueRgb) {
+        if (this.canvas != null) {
+            this.canvas.close();
+        }
+        this.canvas = new GameCanvas(title, trueRgb, this.game != null ? this.game.getScreenInfo() : DoomGame.ScreenInfo.FALLBACK, this.game != null ? this.game.getControls() : "");
     }
 
     public void setPlayerInterface(PlayerInterface playerInterface) {
@@ -47,7 +51,14 @@ public class GameHandler {
     }
 
     public void drawError(Throwable e) {
-        this.canvas.drawError(e);
+        this.getOrInitCanvas().drawError(e);
+    }
+
+    private GameCanvas getOrInitCanvas() {
+        if (this.canvas == null) {
+            this.updateCanvas(false);
+        }
+        return this.canvas;
     }
 
     public void start(DoomGame.GameOpener opener) {
@@ -56,8 +67,15 @@ public class GameHandler {
                 var open = opener.createGame(this, this.playerInterface.getSaveData(), this.config, this.server.getResourceManager());
                 this.game = open.game();
                 this.classLoader = open.loader();
-                this.canvas.setControls(game.getControls());
-                this.canvas.drawBackground();
+                var screenInfo = this.game.getScreenInfo();
+                if (this.canvas == null || screenInfo.width() != this.canvas.getScreenWidth() || screenInfo.height() != this.canvas.getScreenHeight()) {
+                    this.updateCanvas(false);
+                    this.playerInterface.reconfigureCanvas();
+                } else {
+                    this.canvas.updateBackgroundTexture(screenInfo.background(), screenInfo.overlay(), screenInfo.overlayReset(), screenInfo.backgroundScale());
+                    this.canvas.setControls(game.getControls());
+                    this.canvas.drawBackground();
+                }
             } catch (Throwable e) {
                 this.error = e;
                 this.drawError(e);
@@ -89,7 +107,7 @@ public class GameHandler {
     }
 
     public int getSpawnAngle() {
-        return this.canvas != null ? this.canvas.getSpawnAngle() : 180;
+        return 180;
     }
 
     public GameCanvas getCanvas() {
@@ -108,9 +126,11 @@ public class GameHandler {
         this.mouseY = y;
     }
 
-    public void pressMouseRight(boolean b) {
-        if (b) {
-            this.pressE();
+    public void pressMouseRight(boolean value) {
+        synchronized (this) {
+            if (this.game != null) {
+                this.game.pressMouseRight(value);
+            }
         }
     }
 
@@ -170,7 +190,11 @@ public class GameHandler {
     }
 
     public void pressMouseLeft(boolean down) {
-        this.mouseLeft = down;
+        synchronized (this) {
+            if (this.game != null) {
+                this.game.pressMouseLeft(down);
+            }
+        }
     }
 
     public void playSound(SoundTarget target, SoundEvent soundEvent, float pitch, float volume, long seed) {
@@ -194,7 +218,7 @@ public class GameHandler {
     public void clientTick() {
         synchronized (this) {
             if (this.game != null) {
-                this.game.updateMouse(Mth.degreesDifference(this.previousMouseX, this.mouseX), Mth.degreesDifference(this.previousMouseY, this.mouseY), this.mouseLeft);
+                this.game.updateMouse(Mth.degreesDifference(this.previousMouseX, this.mouseX), Mth.degreesDifference(this.previousMouseY, this.mouseY));
             }
         }
         this.previousMouseX = this.mouseX;
@@ -210,6 +234,10 @@ public class GameHandler {
             }
         }
         return false;
+    }
+
+    public int getScale() {
+        return this.scale;
     }
 
 
@@ -229,6 +257,11 @@ public class GameHandler {
             public PlayerSaveData getSaveData() {
                 return null;
             }
+
+            @Override
+            public void reconfigureCanvas() {
+
+            }
         };
 
         void playSound(SoundEvent soundEvent, float pitch, float volume, long seed);
@@ -237,5 +270,7 @@ public class GameHandler {
 
         @Nullable
         PlayerSaveData getSaveData();
+
+        void reconfigureCanvas();
     }
 }

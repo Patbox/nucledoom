@@ -3,9 +3,11 @@ package eu.pb4.nucledoom.game;
 import eu.pb4.nucledoom.NucleDoom;
 import eu.pb4.nucledoom.PlayerSaveData;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.entity.player.Input;
 import org.jetbrains.annotations.Nullable;
+import oshi.driver.mac.WindowInfo;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,7 +53,10 @@ public interface DoomGame {
 
     void updateKeyboard(Input input);
 
-    void updateMouse(float xDelta, float yDelta, boolean mouseLeft);
+    void updateMouse(float xDelta, float yDelta);
+    void pressMouseRight(boolean value);
+    void pressMouseLeft(boolean value);
+
 
     void selectSlot(int selectedSlot);
 
@@ -69,5 +74,30 @@ public interface DoomGame {
 
     String getControls();
 
+    default ScreenInfo getScreenInfo() {
+        return ScreenInfo.DEFAULT;
+    }
+
     record Open(DoomGame game, JarGameClassLoader loader) {}
+
+
+    record ScreenInfo(int width, int height, Identifier background, Identifier overlay, Identifier overlayReset, int backgroundScale) {
+        public static final ScreenInfo DEFAULT = new ScreenInfo(320, 200,
+                Identifier.fromNamespaceAndPath("nucledoom", "default_background"),
+                Identifier.fromNamespaceAndPath("nucledoom", "default_overlay"),
+                Identifier.fromNamespaceAndPath("nucledoom", "default_overlay_reset"),
+                1
+        );
+
+        public static final ScreenInfo FALLBACK = new ScreenInfo(320, 200,
+                Identifier.fromNamespaceAndPath("nucledoom", "default_background"),
+                Identifier.fromNamespaceAndPath("nucledoom", "empty"),
+                Identifier.fromNamespaceAndPath("nucledoom", "empty"),
+                1
+        );
+
+        public ScreenInfo scale(int scale) {
+            return new ScreenInfo(width * scale, height * scale, background, overlay, overlayReset, this.backgroundScale * scale);
+        }
+    }
 }
