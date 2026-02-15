@@ -3,6 +3,8 @@ package eu.pb4.nucledoom.game;
 import eu.pb4.mapcanvas.api.utils.VirtualDisplay;
 import eu.pb4.nucledoom.NucleDoom;
 import eu.pb4.nucledoom.PlayerSaveData;
+import eu.pb4.nucledoom.othergame.NBSPlayer;
+import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -16,6 +18,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.Permissions;
+import net.minecraft.server.players.NameAndId;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -252,6 +256,10 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
 
     @Override
     public EventResult onPacket(ServerPlayer player, Packet<?> packet) {
+        if (player != this.player) {
+            return EventResult.PASS;
+        }
+
         if (packet instanceof ServerboundSetCreativeModeSlotPacket) {
             return EventResult.DENY;
         }
@@ -457,8 +465,45 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
     }
 
     @Override
+    public boolean hasOpPerms() {
+        return this.player.permissions().hasPermission(Permissions.COMMANDS_ADMIN) || this.gameSpace.getServer().isSingleplayerOwner(new NameAndId(this.player.getGameProfile()));
+    }
+
+    @Override
+    public boolean hasResourcePack() {
+        return PolymerResourcePackUtils.hasMainPack(this.player);
+    }
+
+
+    public static GameOpenProcedure openNbs(GameOpenContext<DoomConfig> context) {
+        RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+                .setDimensionType(BuiltinDimensionTypes.OVERWORLD_CAVES)
+                .setGenerator(new VoidChunkGenerator(context.server()));
+
+
+        return context.openWithWorld(worldConfig, (activity, world) -> {
+            //noinspection unchecked
+            var name = GameConfig.name((Holder<GameConfig<?>>) (Object) context.gameConfig()).getString();
+            DoomGameController phase = new DoomGameController(
+                    activity.getGameSpace(), world, context.config(), new GameHandler(context.config(), name, activity.getGameSpace().getServer())) {
+                @Override
+                protected void runThread() {
+                    this.handler.start(((handler1, saveData, config1, resourceManager) -> new DoomGame.Open(new NBSPlayer(handler1, saveData, config1, resourceManager), null)));
+                }
+
+                @Override
+                protected void initializePlayer(ServerPlayer player, GameType gameMode) {
+                    super.initializePlayer(player, GameType.SPECTATOR);
+                }
+            };
+
+            phase.setupActivity(activity);
+        });
+    }
+
+    @Override
     public EventResult onSendChatMessage(ServerPlayer serverPlayer, PlayerChatMessage playerChatMessage, ChatType.Bound bound) {
-        if (bound.chatType().is(ChatType.CHAT)) {
+        if (bound.chatType().is(ChatType.CHAT) && serverPlayer == this.player) {
             return this.handler.onChat(playerChatMessage.signedContent()) ? EventResult.DENY : EventResult.PASS;
         }
         return EventResult.PASS;

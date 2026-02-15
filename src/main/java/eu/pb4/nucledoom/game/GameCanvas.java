@@ -155,7 +155,7 @@ public class GameCanvas {
         BlockPos displayPos = this.getDisplayPos();
         var trueRgbScale = this.trueRgb ? 2 : 1;
 
-        return new Vec3(displayPos.getX() + sectionWidth * 0.5 * trueRgbScale, displayPos.getY() - sectionHeight * 0.5f * trueRgbScale + 1, 1.5 *  this.screenWidth / 320 * trueRgbScale + 0.01f);
+        return new Vec3(displayPos.getX() + sectionWidth * 0.5 * trueRgbScale, displayPos.getY() - sectionHeight * 0.5f * trueRgbScale + 1, ((float) this.screenWidth) / 320 * trueRgbScale + 0.01f + 0.5f);
     }
 
 

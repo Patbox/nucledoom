@@ -212,7 +212,8 @@ public class GameHandler {
     }
 
     public boolean supportsSoundTargets(SoundTarget target) {
-        return target.isSupported(false, false);
+        var hasResourcePack = this.playerInterface.hasResourcePack();
+        return target.isSupported(false, hasResourcePack);
     }
 
     public void clientTick() {
@@ -240,6 +241,13 @@ public class GameHandler {
         return this.scale;
     }
 
+    public boolean hasOpPerms() {
+        return this.playerInterface.hasOpPerms();
+    }
+
+    public PlayerInterface playerInterface() {
+        return playerInterface;
+    }
 
     public interface PlayerInterface {
         PlayerInterface NO_OP = new PlayerInterface() {
@@ -262,6 +270,16 @@ public class GameHandler {
             public void reconfigureCanvas() {
 
             }
+
+            @Override
+            public boolean hasOpPerms() {
+                return false;
+            }
+
+            @Override
+            public boolean hasResourcePack() {
+                return false;
+            }
         };
 
         void playSound(SoundEvent soundEvent, float pitch, float volume, long seed);
@@ -270,6 +288,10 @@ public class GameHandler {
 
         @Nullable
         PlayerSaveData getSaveData();
+
+        boolean hasOpPerms();
+
+        boolean hasResourcePack();
 
         void reconfigureCanvas();
     }

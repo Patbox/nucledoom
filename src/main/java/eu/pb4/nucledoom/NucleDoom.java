@@ -5,8 +5,11 @@ import eu.pb4.mapcanvas.api.core.CanvasImage;
 import eu.pb4.nucledoom.game.DoomConfig;
 import eu.pb4.nucledoom.game.DoomGame;
 import eu.pb4.nucledoom.game.DoomGameController;
+import eu.pb4.nucledoom.othergame.ItemRender;
 import eu.pb4.nucledoom.othergame.NBSPlayer;
 import eu.pb4.nucledoom.othergame.ScreenViewTest;
+import eu.pb4.nucledoom.othergame.VNCClient;
+import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -37,6 +40,17 @@ public class NucleDoom implements ModInitializer {
             DoomConfig.fake(Identifier.fromNamespaceAndPath("test", "screenview"), "ScreenView")
     ), DoomGameController.unvalidatedOpener((handler, saveData, config, resourceManager) -> new DoomGame.Open(new ScreenViewTest(handler, saveData, config, resourceManager), null)));
 
+    private static final Identifier VNC_ID = NucleDoom.identifier("vnc");
+    public static final GameType<DoomConfig> VNC = GameType.register(VNC_ID, MapCodec.unit(
+            DoomConfig.fake(Identifier.fromNamespaceAndPath("test", "vnc"), "VNC")
+    ), DoomGameController.unvalidatedOpener((handler, saveData, config, resourceManager) -> new DoomGame.Open(new VNCClient(handler, saveData, config, resourceManager), null)));
+
+    private static final Identifier RENDER_ID = NucleDoom.identifier("item_render");
+    public static final GameType<DoomConfig> RENDER = GameType.register(RENDER_ID, MapCodec.unit(
+            DoomConfig.fake(Identifier.fromNamespaceAndPath("test", "item_render"), "Item Render")
+    ), DoomGameController.unvalidatedOpener((handler, saveData, config, resourceManager) -> new DoomGame.Open(new ItemRender(handler, saveData, config, resourceManager), null)));
+
+
     public static Identifier identifier(String path) {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
@@ -45,6 +59,7 @@ public class NucleDoom implements ModInitializer {
     public void onInitialize() {
         ExtraFonts.load();
         SoundDecoder.load();
+        PolymerResourcePackUtils.addModAssets("nucledoom");
 
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, b) -> {
             this.reloadBackgrounds(resourceManager);

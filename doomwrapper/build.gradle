@@ -2,7 +2,10 @@ plugins {
 	id "fabric-loom" version "1.13.+"
 }
 
-archivesBaseName = 'doomwrapper'
+base {
+	archivesName = 'doomwrapper'
+}
+
 group = project.maven_group
 
 repositories {

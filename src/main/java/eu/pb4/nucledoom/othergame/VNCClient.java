@@ -1,5 +1,8 @@
 package eu.pb4.nucledoom.othergame;
 
+import com.shinyhut.vernacular.client.VernacularClient;
+import com.shinyhut.vernacular.client.VernacularConfig;
+import com.shinyhut.vernacular.client.rendering.ColorDepth;
 import eu.pb4.mapcanvas.api.core.CanvasColor;
 import eu.pb4.mapcanvas.api.core.CanvasImage;
 import eu.pb4.mapcanvas.api.font.DefaultFonts;
@@ -18,30 +21,26 @@ import org.jetbrains.annotations.Nullable;
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.util.function.BiConsumer;
 
-public class ScreenViewTest implements DoomGame {
-    @Nullable
+public class VNCClient implements DoomGame {
     private final GameHandler handler;
-    private final int[] pressNum = new int[9];
-    private final Robot robot;
-    private final ScreenInfo screenInfo;
-    private final Dimension screenSize;
-    private final Rectangle rectangle;
+    private ScreenInfo screenInfo;
     private volatile boolean close = false;
     private Input input = Input.EMPTY;
-    private CanvasImage screen;
+    private CanvasImage screen = new CanvasImage(128, 128);
     private Int2IntMap keys = new Int2IntArrayMap();
+    private VernacularClient client;
+    private int mouseX;
+    private int mouseY;
 
-    public ScreenViewTest(@Nullable GameHandler gameHandler,
-                          @Nullable PlayerSaveData saveData,
-                          DoomConfig config,
-                          ResourceManager resourceManager) throws Throwable {
+    public VNCClient(@Nullable GameHandler gameHandler,
+                     @Nullable PlayerSaveData saveData,
+                     DoomConfig config,
+                     ResourceManager resourceManager) throws Throwable {
+        this.screenInfo = ScreenInfo.FALLBACK;
         this.handler = gameHandler;
-        this.robot = new Robot();
-        this.screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        this.screenInfo = new ScreenInfo(screenSize.width, screenSize.height, ScreenInfo.DEFAULT.background(), ScreenInfo.DEFAULT.overlay(), ScreenInfo.DEFAULT.overlayReset(), 1);
-        this.rectangle = new Rectangle(this.screenSize);
     }
 
     @Override
@@ -51,13 +50,50 @@ public class ScreenViewTest implements DoomGame {
 
     @Override
     public boolean onChat(String message) {
-
-        return false;
+        this.client.type(message);
+        return true;
     }
 
     @Override
     public void startGameLoop() throws Throwable {
         try {
+            var config = new VernacularConfig();
+            this.client = new VernacularClient(config);
+
+            // Select 8-bits per pixel indexed color, or 8/16/24 bits per pixel true color
+            config.setColorDepth(ColorDepth.BPP_24_TRUE);
+            config.setTargetFramesPerSecond(60);
+
+            // Set up callbacks for the various events that can happen in a VNC session
+
+            // Exception handler
+            config.setErrorListener(Throwable::printStackTrace);
+
+            // Password supplier - this is only invoked if the remote server requires authentication
+            config.setPasswordSupplier(() -> "");
+
+            // Handle system bell events from the remote host
+            config.setBellListener(v -> System.out.println("DING!"));
+
+            // Receive screen updates from the remote host
+            // The 'image' parameter is a java.awt.Image containing a current snapshot of the remote desktop
+            // Expect this event to be triggered several times per second
+            config.setScreenUpdateListener(img -> {
+                var screen = CanvasImage.from((BufferedImage) img);
+
+                if (this.screen == null || this.screen.getHeight() != screen.getHeight() || this.screen.getWidth() != screen.getWidth()) {
+                    this.screenInfo = new ScreenInfo(screen.getWidth(), screen.getHeight(), screenInfo.background(), screenInfo.overlay(), screenInfo.overlayReset(), screenInfo.backgroundScale());
+                    this.handler.updateCanvas(false);
+                    this.handler.playerInterface().reconfigureCanvas();
+                    this.mouseX = this.screenInfo.width() / 2;
+                    this.mouseY = this.screenInfo.height() / 2;
+                }
+                this.screen = screen;
+            });
+
+            // Start the VNC session
+            client.start("pblaptop.local", 5900);
+
             while (true) {
                 this.drawFrame();
                 if (this.close) break;
@@ -71,6 +107,9 @@ public class ScreenViewTest implements DoomGame {
     @Override
     public void clear() {
         this.close = true;
+        if (this.client != null) {
+            this.client.stop();
+        }
     }
 
     public void drawFrame() {
@@ -78,26 +117,6 @@ public class ScreenViewTest implements DoomGame {
             throw new GameClosed(0);
         }
 
-        if (this.handler == null) {
-            return;
-        }
-
-
-        if (this.screen == null) {
-            this.screen = new CanvasImage(this.screenInfo.width(), this.screenInfo.height());
-        }
-        var rgb = this.screen;
-        var time = System.currentTimeMillis();
-        var image = RawImage.convert(this.robot.createScreenCapture(this.rectangle));
-
-
-        for (var x = 0; x < this.screenSize.width; x++) {
-            for (var y = 0; y < this.screenSize.height; y++) {
-                rgb.set(x, y, CanvasUtils.findClosestColor(image.get(x, y)));
-            }
-        }
-
-        DefaultFonts.VANILLA.drawText(rgb, String.valueOf(System.currentTimeMillis() - time), 8,8, 8, CanvasColor.WHITE_HIGH);
         this.handler.getCanvas().drawFrame(this.screen);
     }
 
@@ -120,44 +139,33 @@ public class ScreenViewTest implements DoomGame {
         double e = d * d * d;
         double f = e * 8.0;
 
-        var pos = MouseInfo.getPointerInfo().getLocation();
 
-        var newX = pos.x + (int) (xDelta * 6 / 0.15 / f / 1.5);
-        var newY = pos.y + (int) (yDelta * 6 / 0.15 / f / 1.5);
-        if (pos.x != newX || pos.y != newY) {
-            this.robot.mouseMove(newX, newY);
+        var newX = this.mouseX + (int) (xDelta * 6 / 0.15 / f / 1.5);
+        var newY = this.mouseY + (int) (yDelta * 6 / 0.15 / f / 1.5);
+        if (this.mouseX != newX || this.mouseY != newY) {
+            this.client.moveMouse(newX, newY);
+            this.mouseX = newX;
+            this.mouseY = newY;
         }
     }
 
     @Override
     public void pressMouseLeft(boolean value) {
-        if (value) {
-            this.robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-        } else {
-            this.robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-        }
+        this.client.updateMouseButton(1, value);
     }
 
     @Override
     public void pressMouseRight(boolean value) {
-        if (value) {
-            this.robot.mousePress(InputEvent.BUTTON2_DOWN_MASK);
-        } else {
-            this.robot.mouseRelease(InputEvent.BUTTON2_DOWN_MASK);
-        }
+        this.client.updateMouseButton(2, value);
     }
 
     private void pressEvent(int key, boolean val) {
-        if (val) {
-            this.robot.keyPress(key);
-        } else {
-            this.robot.keyRelease(key);
-        }
+        this.client.updateKey(key, val);
     }
 
     private void pressTimed(int key) {
         if (this.keys.getOrDefault(key, -1) == -1) {
-            this.robot.keyPress(key);
+            this.client.updateKey(key, true);
         }
         this.keys.put(key, 2);
     }
@@ -165,12 +173,12 @@ public class ScreenViewTest implements DoomGame {
 
     @Override
     public void selectSlot(int selectedSlot) {
-        this.pressTimed(selectedSlot);
+        this.pressTimed(KeyEvent.VK_1 + selectedSlot);
     }
 
     @Override
     public void pressE() {
-        this.pressTimed(KeyEvent.VK_E);
+        this.pressTimed(KeyEvent.VK_ESCAPE);
     }
 
     @Override
@@ -191,7 +199,7 @@ public class ScreenViewTest implements DoomGame {
             var val = this.keys.get(key) - 1;
             if (val == 0) {
                 this.keys.remove(key);
-                this.robot.keyRelease(key);
+                this.client.updateKey(key, false);
             } else {
                 this.keys.put(key, val);
             }
