@@ -16,6 +16,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import xyz.nucleoid.plasmid.api.game.GameType;
+import xyz.nucleoid.plasmid.api.game.GameTypes;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;
@@ -30,23 +31,23 @@ public class NucleDoom implements ModInitializer {
     public static final Map<Identifier, byte[]> WADS = new HashMap<>();
     public static final Map<Identifier, CanvasImage> BACKGROUND = new HashMap<>();
     private static final Identifier GAME_ID = NucleDoom.identifier("doom");
-    public static final GameType<DoomConfig> DOOM = GameType.register(GAME_ID, DoomConfig.CODEC, DoomGameController::open);
+    public static final GameType<DoomConfig> DOOM = GameTypes.register(GAME_ID, DoomConfig.CODEC, DoomGameController::open);
     private static final Identifier NBS_GAME_ID = NucleDoom.identifier("nbs_player");
-    public static final GameType<DoomConfig> NBS_PLAYER = GameType.register(NBS_GAME_ID, MapCodec.unit(
+    public static final GameType<DoomConfig> NBS_PLAYER = GameTypes.register(NBS_GAME_ID, MapCodec.unit(
             new DoomConfig(Identifier.fromNamespaceAndPath("nbs", "player"), "NBS Player", List.of(), List.of(), Map.of(), false, Optional.empty())
     ), DoomGameController.unvalidatedOpener((handler, saveData, config, resourceManager) -> new DoomGame.Open(new NBSPlayer(handler, saveData, config, resourceManager), null)));
     private static final Identifier SCREEN_VIEW_ID = NucleDoom.identifier("screen_view");
-    public static final GameType<DoomConfig> SCREEN_VIEW = GameType.register(SCREEN_VIEW_ID, MapCodec.unit(
+    public static final GameType<DoomConfig> SCREEN_VIEW = GameTypes.register(SCREEN_VIEW_ID, MapCodec.unit(
             DoomConfig.fake(Identifier.fromNamespaceAndPath("test", "screenview"), "ScreenView")
     ), DoomGameController.unvalidatedOpener((handler, saveData, config, resourceManager) -> new DoomGame.Open(new ScreenViewTest(handler, saveData, config, resourceManager), null)));
 
     private static final Identifier VNC_ID = NucleDoom.identifier("vnc");
-    public static final GameType<DoomConfig> VNC = GameType.register(VNC_ID, MapCodec.unit(
+    public static final GameType<DoomConfig> VNC = GameTypes.register(VNC_ID, MapCodec.unit(
             DoomConfig.fake(Identifier.fromNamespaceAndPath("test", "vnc"), "VNC")
     ), DoomGameController.unvalidatedOpener((handler, saveData, config, resourceManager) -> new DoomGame.Open(new VNCClient(handler, saveData, config, resourceManager), null)));
 
     private static final Identifier RENDER_ID = NucleDoom.identifier("item_render");
-    public static final GameType<DoomConfig> RENDER = GameType.register(RENDER_ID, MapCodec.unit(
+    public static final GameType<DoomConfig> RENDER = GameTypes.register(RENDER_ID, MapCodec.unit(
             DoomConfig.fake(Identifier.fromNamespaceAndPath("test", "item_render"), "Item Render")
     ), DoomGameController.unvalidatedOpener((handler, saveData, config, resourceManager) -> new DoomGame.Open(new ItemRender(handler, saveData, config, resourceManager), null)));
 

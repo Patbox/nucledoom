@@ -24,7 +24,7 @@ public interface DoomGame {
         List<Path> path = null;
         var base = FabricLoader.getInstance().getGameDir();
         if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            path = List.of(base.resolve("../doomwrapper/build/devlibs/doomwrapper-dev.jar"),
+            path = List.of(base.resolve("../doomwrapper/build/libs/doomwrapper.jar"),
                     base.resolve("../jars/mochadoom.jar"));
         } else {
             var container = FabricLoader.getInstance().getModContainer(NucleDoom.MOD_ID).get();

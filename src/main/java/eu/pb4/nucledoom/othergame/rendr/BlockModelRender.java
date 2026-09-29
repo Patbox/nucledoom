@@ -1,5 +1,6 @@
 package eu.pb4.nucledoom.othergame.rendr;
 
+import com.mojang.math.Quadrant;
 import eu.pb4.polymer.common.api.PolymerCommonUtils;
 import eu.pb4.polymer.resourcepack.api.AssetPaths;
 import eu.pb4.polymer.resourcepack.extras.api.format.model.ModelAsset;
@@ -26,7 +27,8 @@ public class BlockModelRender {
     private final List<ModelElement> model = new ArrayList<>();
     private ModelTransformation transformation = new ModelTransformation(Vec3.ZERO, Vec3.ZERO, Vec3.ZERO);
 
-    public BlockModelRender() {}
+    public BlockModelRender() {
+    }
 
     public void loadModel(Identifier modelId) {
         var jar = PolymerCommonUtils.getClientJarRoot();
@@ -57,7 +59,9 @@ public class BlockModelRender {
         var transform = new ModelTransformation(Vec3.ZERO, Vec3.ZERO, new Vec3(1, 1, 1));
 
         for (var model : modelStack.reversed()) {
-            unresolvedTextures.putAll(model.textures());
+            for (var x : model.textures().entrySet()) {
+                unresolvedTextures.put(x.getKey(), x.getValue().getSerializedName());
+            }
 
             if (model.elements().isPresent()) {
                 list = model.elements().get();
@@ -113,8 +117,8 @@ public class BlockModelRender {
                 var scaleX = 16f / texture.width();
                 var scaleY = 16f / texture.height();
                 list.add(new ModelElement(new Vec3(0, 0, 8), new Vec3(16, 16, 9), Map.of(
-                        Direction.SOUTH, new ModelElement.Face(FloatList.of(0, 0, 16, 16), id, Optional.empty(), 0, i),
-                        Direction.NORTH, new ModelElement.Face(FloatList.of(16, 0, 0, 16), id, Optional.empty(), 0, i)
+                        Direction.SOUTH, new ModelElement.Face(FloatList.of(0, 0, 16, 16), id, Optional.empty(), Quadrant.R0, i),
+                        Direction.NORTH, new ModelElement.Face(FloatList.of(16, 0, 0, 16), id, Optional.empty(), Quadrant.R0, i)
                 )));
 
                 for (int x = 0; x < texture.width(); x++) {
@@ -124,7 +128,7 @@ public class BlockModelRender {
                         var u = x * scaleX + scaleX / 2;
                         var v = y * scaleY + scaleY / 2;
 
-                        var face = new ModelElement.Face(FloatList.of(u, v, u, v), id, Optional.empty(), 0, i);
+                        var face = new ModelElement.Face(FloatList.of(u, v, u, v), id, Optional.empty(), Quadrant.R0, i);
                         var map = new EnumMap<Direction, ModelElement.Face>(Direction.class);
                         for (var dir : Direction.values()) {
                             if (dir.getAxis() == Direction.Axis.Z) {
@@ -165,7 +169,6 @@ public class BlockModelRender {
         view.translate(-8, -8, -8);
 
 
-
         var vec = new Vector3f[]{
                 new Vector3f(),
                 new Vector3f(),
@@ -187,10 +190,14 @@ public class BlockModelRender {
 
             if (el.rotation().isPresent()) {
                 var rot = el.rotation().get();
-                var origin = rot.origin().toVector3f();
+                var origin = rot.origin();
                 view.translate(origin);
-                view.rotate(rot.angle() * Mth.DEG_TO_RAD, rot.axis().getPositive().getUnitVec3f());
-                view.translate(origin.negate());
+                if (rot.value() instanceof ModelElement.Rotation.SingleAxis(Direction.Axis axis, float angle)) {
+                    view.rotate(angle * Mth.DEG_TO_RAD, axis.getPositive().getUnitVec3f());
+                } else if (rot.value() instanceof ModelElement.Rotation.Euler(float x, float y, float z)) {
+                    view.rotateXYZ(x * Mth.DEG_TO_RAD, y * Mth.DEG_TO_RAD, z * Mth.DEG_TO_RAD);
+                }
+                view.translate(origin.negate(new Vector3f()));
             }
 
             for (var face : el.faces().entrySet()) {

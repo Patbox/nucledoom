@@ -27,10 +27,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.item.Items;
@@ -41,7 +38,7 @@ import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
-import xyz.nucleoid.fantasy.RuntimeWorldConfig;
+import xyz.nucleoid.fantasy.RuntimeLevelConfig;
 import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
 import xyz.nucleoid.plasmid.api.game.*;
 import xyz.nucleoid.plasmid.api.game.common.PlayerLimiter;
@@ -81,17 +78,17 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
 
         this.handler = handler;
 
-        cameraEntity = EntityType.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
+        cameraEntity = EntityTypes.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
         assert cameraEntity != null;
         cameraEntity.setInvisible(true);
         world.addFreshEntity(cameraEntity);
 
-        this.leftAudio = EntityType.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
+        this.leftAudio = EntityTypes.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
         assert leftAudio != null;
         leftAudio.setInvisible(true);
         world.addFreshEntity(leftAudio);
 
-        this.rightAudio = EntityType.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
+        this.rightAudio = EntityTypes.ITEM_DISPLAY.create(world, EntitySpawnReason.LOAD);
         assert rightAudio != null;
         rightAudio.setInvisible(true);
         world.addFreshEntity(rightAudio);
@@ -141,12 +138,12 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
             }
         }
 
-        RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+        RuntimeLevelConfig worldConfig = new RuntimeLevelConfig()
                 .setDimensionType(BuiltinDimensionTypes.OVERWORLD_CAVES)
                 .setGenerator(new VoidChunkGenerator(context.server()));
 
 
-        return context.openWithWorld(worldConfig, (activity, world) -> {
+        return context.openWithLevel(worldConfig, (activity, world) -> {
             //noinspection unchecked
             var name = GameConfig.name((Holder<GameConfig<?>>) (Object) context.gameConfig()).getString();
             DoomGameController phase = new DoomGameController(
@@ -158,12 +155,12 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
 
     public static xyz.nucleoid.plasmid.api.game.GameType.Open<DoomConfig> unvalidatedOpener(DoomGame.GameOpener opener) {
         return context -> {
-            RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+            RuntimeLevelConfig worldConfig = new RuntimeLevelConfig()
                     .setDimensionType(BuiltinDimensionTypes.OVERWORLD_CAVES)
                     .setGenerator(new VoidChunkGenerator(context.server()));
 
 
-            return context.openWithWorld(worldConfig, (activity, world) -> {
+            return context.openWithLevel(worldConfig, (activity, world) -> {
                 //noinspection unchecked
                 var name = GameConfig.name((Holder<GameConfig<?>>) (Object) context.gameConfig()).getString();
                 DoomGameController phase = new DoomGameController(
@@ -349,7 +346,7 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
     // /game open {type:"consolebox:console_box", game:"consolebox:cart"}
     @Override
     public JoinAcceptorResult onAcceptPlayers(JoinAcceptor acceptor) {
-        Vec3 spawnPos = this.handler.getSpawnPos().add(0, -EntityType.PLAYER.getHeight() + 0.2, 0);
+        Vec3 spawnPos = this.handler.getSpawnPos().add(0, -EntityTypes.PLAYER.getHeight() + 0.2, 0);
 
         if (acceptor.intent().canPlay()) {
             return acceptor.teleport(this.world, spawnPos, this.handler.getSpawnAngle(), 0).thenRunForEach(player -> {
@@ -390,7 +387,7 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
 
     // Utilities
     private void spawnMount(Vec3 playerPos, ServerPlayer player) {
-        var mount = EntityType.MULE.create(this.world, EntitySpawnReason.JOCKEY);
+        var mount = EntityTypes.MULE.create(this.world, EntitySpawnReason.JOCKEY);
         mount.refreshDimensions();
         double y = playerPos.y() - 0.1f;
         mount.setPosRaw(playerPos.x(), y, playerPos.z());
@@ -400,7 +397,7 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
         mount.setNoGravity(true);
         mount.setSilent(true);
         mount.setPersistenceRequired();
-        mount.setInvulnerable(true);
+        mount.setPermanentlyInvulnerable(true);
         mount.getAttribute(Attributes.SCALE).setBaseValue(0);
 
         // Prevent mount from being visible
@@ -412,13 +409,13 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
 
         this.world.addFreshEntity(mount);
         player.startRiding(mount, true, false);
-        player.displayClientMessage(Component.empty(), true);
+        player.sendSystemMessage(Component.empty(), true);
     }
 
     protected void initializePlayer(ServerPlayer player, GameType gameMode) {
         player.setGameMode(gameMode);
         player.setInvisible(true);
-        player.setInvulnerable(true);
+        player.setPermanentlyInvulnerable(true);
         player.addEffect(this.createInfiniteStatusEffect(MobEffects.NIGHT_VISION));
         player.addEffect(this.createInfiniteStatusEffect(MobEffects.INVISIBILITY));
         player.getAttributes().getInstance(Attributes.ATTACK_SPEED).setBaseValue(9999999);
@@ -433,7 +430,7 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
         player.connection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
         player.setYRot(this.handler.getSpawnAngle());
         player.setXRot(Float.MIN_VALUE);
-        player.displayClientMessage(Component.empty(), true);
+        player.sendSystemMessage(Component.empty(), true);
     }
 
     private MobEffectInstance createInfiniteStatusEffect(Holder<MobEffect> statusEffect) {
@@ -476,12 +473,12 @@ public class DoomGameController implements GameHandler.PlayerInterface, GamePlay
 
 
     public static GameOpenProcedure openNbs(GameOpenContext<DoomConfig> context) {
-        RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+        RuntimeLevelConfig worldConfig = new RuntimeLevelConfig()
                 .setDimensionType(BuiltinDimensionTypes.OVERWORLD_CAVES)
                 .setGenerator(new VoidChunkGenerator(context.server()));
 
 
-        return context.openWithWorld(worldConfig, (activity, world) -> {
+        return context.openWithLevel(worldConfig, (activity, world) -> {
             //noinspection unchecked
             var name = GameConfig.name((Holder<GameConfig<?>>) (Object) context.gameConfig()).getString();
             DoomGameController phase = new DoomGameController(

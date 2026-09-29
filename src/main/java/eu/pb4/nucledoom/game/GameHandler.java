@@ -213,7 +213,7 @@ public class GameHandler {
 
     public boolean supportsSoundTargets(SoundTarget target) {
         var hasResourcePack = this.playerInterface.hasResourcePack();
-        return target.isSupported(false, hasResourcePack);
+        return target.isSupported(false, false);
     }
 
     public void clientTick() {

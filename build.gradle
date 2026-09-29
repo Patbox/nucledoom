@@ -1,5 +1,5 @@
 plugins {
-	id "fabric-loom" version "1.13.+"
+	id "net.fabricmc.fabric-loom" version "1.15.+"
 	id "maven-publish"
 }
 base {
@@ -28,23 +28,22 @@ repositories {
 dependencies {
 	// Main
 	minecraft("com.mojang:minecraft:${project.minecraft_version}")
-	mappings loom.officialMojangMappings()
-	modImplementation("net.fabricmc:fabric-loader:${project.loader_version}")
+	implementation("net.fabricmc:fabric-loader:${project.loader_version}")
 
 	// Fabric API
-	modImplementation("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}")
+	implementation("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}")
 
 	// Plasmid
-	modImplementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
-	modImplementation include("eu.pb4:polymer-core:0.15.1+1.21.11")
-	modImplementation include("eu.pb4:polymer-resource-pack:0.15.1+1.21.11")
-	modImplementation include("eu.pb4:polymer-resource-pack-extras:0.15.1+1.21.11")
-	modImplementation include("eu.pb4:polymer-virtual-entity:0.15.1+1.21.11")
-	modImplementation include("eu.pb4:polymer-sound-patcher:0.15.1+1.21.11")
-	modImplementation include("eu.pb4:polymer-autohost:0.15.1+1.21.11")
-	//modImplementation("eu.pb4:polymer-resource-pack-extras:0.11.8+1.21.4")
+	implementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
+	implementation include("eu.pb4:polymer-core:0.18.2+26.3")
+	implementation include("eu.pb4:polymer-resource-pack:0.18.2+26.3")
+	implementation include("eu.pb4:polymer-resource-pack-extras:0.18.2+26.3")
+	implementation include("eu.pb4:polymer-virtual-entity:0.18.2+26.3")
+	implementation include("eu.pb4:polymer-sound-patcher:0.18.2+26.3")
+	implementation include("eu.pb4:polymer-autohost:0.18.2+26.3")
+	//implementation("eu.pb4:polymer-resource-pack-extras:0.11.8+1.21.4")
 
-	implementation include("net.raphimc:NoteBlockLib:3.1.1")
+	implementation include("net.raphimc:NoteBlockLib:3.3.0")
 	implementation include("com.shinyhut:vernacular:1.14")
 	//implementation include('org.gagravarr:vorbis-java-core:0.8')
 }
@@ -58,12 +57,12 @@ processResources {
 }
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
 }
 
 tasks.withType(JavaCompile) {
-	options.release = 21
+	options.release = 25
 	options.encoding = "UTF-8"
 }
 

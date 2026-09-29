@@ -1,5 +1,5 @@
 plugins {
-	id "fabric-loom" version "1.13.+"
+	id "net.fabricmc.fabric-loom" version "1.15.+"
 }
 
 base {
@@ -28,14 +28,13 @@ repositories {
 dependencies {
 	// Main
 	minecraft("com.mojang:minecraft:${project.minecraft_version}")
-	mappings loom.officialMojangMappings()
-	modCompileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
+	compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
 
 	// Fabric API
 	compileOnly("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}")
 
-	compileOnly "net.raphimc:NoteBlockLib:3.1.1"
-	compileOnly "eu.pb4:map-canvas-api:0.7.0+1.21.11"
+	compileOnly "net.raphimc:NoteBlockLib:3.3.0"
+	compileOnly "eu.pb4:map-canvas-api:0.9.1+26.2"
 	compileOnly files('../jars/mochadoom.jar')
 	compileOnly project(':')
 
@@ -50,12 +49,12 @@ processResources {
 }
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
 }
 
 tasks.withType(JavaCompile) {
-	options.release = 21
+	options.release = 25
 	options.encoding = "UTF-8"
 }
 

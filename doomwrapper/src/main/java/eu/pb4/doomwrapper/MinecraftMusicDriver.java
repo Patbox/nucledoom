@@ -3,11 +3,12 @@ package eu.pb4.doomwrapper;
 import eu.pb4.nucledoom.game.SoundTarget;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.raphimc.noteblocklib.data.MinecraftDefinitions;
-import net.raphimc.noteblocklib.data.MinecraftInstrument;
 import net.raphimc.noteblocklib.format.midi.MidiIo;
-import net.raphimc.noteblocklib.model.Note;
-import net.raphimc.noteblocklib.model.Song;
+import net.raphimc.noteblocklib.format.minecraft.MinecraftDefinitions;
+import net.raphimc.noteblocklib.format.minecraft.MinecraftInstrument;
+import net.raphimc.noteblocklib.format.minecraft.ShiftedMinecraftInstrument;
+import net.raphimc.noteblocklib.model.note.Note;
+import net.raphimc.noteblocklib.model.song.Song;
 import net.raphimc.noteblocklib.player.SongPlayer;
 import s.IMusic;
 import s.MusReader;
@@ -134,9 +135,10 @@ public class MinecraftMusicDriver implements IMusic {
                             tmpNote.setInstrument(instrument);
                             tmpNote.setMidiKey(note.getMidiKey());
                             tmpNote.setVolume(note.getVolume());
-                            var suffix = MinecraftDefinitions.applyExtendedNotesResourcePack(tmpNote);
+                            MinecraftDefinitions.applyExtendedNotesResourcePack(tmpNote);
+                            var id = tmpNote.getInstrument() instanceof MinecraftInstrument in1 ? in1.mcSoundName() : tmpNote.getInstrument() instanceof ShiftedMinecraftInstrument in2 ? in2.mcSoundName() : instrument.mcSoundName();
                             game.playSound(SoundTarget.MUSIC_EXT,
-                                    new net.minecraft.sounds.SoundEvent(Identifier.tryParse(instrument.mcSoundName() + "_" + suffix), Optional.empty()),
+                                    new net.minecraft.sounds.SoundEvent(Identifier.parse(id), Optional.empty()),
                                     tmpNote.getPitch(), volume * tmpNote.getVolume());
                         }
                     } else {
@@ -147,8 +149,9 @@ public class MinecraftMusicDriver implements IMusic {
         }
 
         @Override
-        protected void onFinished() {
-            super.onFinished();
+        protected void onSongFinished() {
+            super.onSongFinished();
+
             if (this.loop) {
                 this.start();
             }

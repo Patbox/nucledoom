@@ -19,14 +19,15 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.level.block.NoteBlock;
-import net.raphimc.noteblocklib.data.MinecraftDefinitions;
-import net.raphimc.noteblocklib.data.MinecraftInstrument;
 import net.raphimc.noteblocklib.format.midi.MidiIo;
+import net.raphimc.noteblocklib.format.minecraft.MinecraftDefinitions;
+import net.raphimc.noteblocklib.format.minecraft.MinecraftInstrument;
+import net.raphimc.noteblocklib.format.minecraft.ShiftedMinecraftInstrument;
 import net.raphimc.noteblocklib.format.nbs.NbsIo;
 import net.raphimc.noteblocklib.format.nbs.model.NbsCustomInstrument;
 import net.raphimc.noteblocklib.format.nbs.model.NbsSong;
-import net.raphimc.noteblocklib.model.Note;
-import net.raphimc.noteblocklib.model.Song;
+import net.raphimc.noteblocklib.model.note.Note;
+import net.raphimc.noteblocklib.model.song.Song;
 import net.raphimc.noteblocklib.player.SongPlayer;
 import org.jetbrains.annotations.Nullable;
 
@@ -510,9 +511,12 @@ public class NBSPlayer implements DoomGame {
                             tmpNote.setInstrument(instrument);
                             tmpNote.setMidiKey(note.getMidiKey());
                             tmpNote.setVolume(note.getVolume());
-                            var suffix = MinecraftDefinitions.applyExtendedNotesResourcePack(tmpNote);
+                            MinecraftDefinitions.applyExtendedNotesResourcePack(tmpNote);
+
+                            var id = tmpNote.getInstrument() instanceof MinecraftInstrument in1 ? in1.mcSoundName() : tmpNote.getInstrument() instanceof ShiftedMinecraftInstrument in2 ? in2.mcSoundName() : instrument.mcSoundName();
+
                             playSound(SoundTarget.MUSIC_EXT,
-                                    new net.minecraft.sounds.SoundEvent(Identifier.tryParse(instrument.mcSoundName() + "_" + suffix), Optional.empty()),
+                                    new net.minecraft.sounds.SoundEvent(Identifier.parse(id), Optional.empty()),
                                     tmpNote.getPitch(), volume * tmpNote.getVolume(), 0);
                         }
                     } else {
